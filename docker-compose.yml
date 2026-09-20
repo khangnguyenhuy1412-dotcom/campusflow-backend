@@ -1,0 +1,44 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: campusflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-campusflow_db}
+      MYSQL_USER: ${DB_USER:-campusflow_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-campusflow_secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - campusflow-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: campusflow-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "${PMA_PORT:-8088}:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - campusflow-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  campusflow-network:
+    driver: bridge
