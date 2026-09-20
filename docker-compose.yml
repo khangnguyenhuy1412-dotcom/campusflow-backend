@@ -42,3 +42,4 @@ volumes:
 networks:
   campusflow-network:
     driver: bridge
+
