@@ -16,3 +16,4 @@
 - [ ] Dự án build thành công ở máy cá nhân (`./mvnw clean test` hoặc compile không lỗi).
 - [ ] Đã kiểm tra không vô tình commit các file nhạy cảm (`.env`, secrets, credentials).
 - [ ] Đã viết hoặc cập nhật unit test (nếu có).
+
