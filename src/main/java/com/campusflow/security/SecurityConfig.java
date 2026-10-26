@@ -36,6 +36,12 @@ public class SecurityConfig {
             "/api/categories/**"
     };
 
+    // Creating or changing listings and exchanges requires a verified student email
+    private static final String[] VERIFIED_WRITE_ENDPOINTS = {
+            "/api/items/**",
+            "/api/exchange-requests/**"
+    };
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
@@ -49,6 +55,10 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
+                        .requestMatchers(HttpMethod.PUT, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
+                        .requestMatchers(HttpMethod.PATCH, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
+                        .requestMatchers(HttpMethod.DELETE, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))

@@ -39,12 +39,13 @@ class JwtServiceTest {
     void generatedTokenDecodesWithExpectedClaims() {
         JwtProperties props = properties(SECRET, "campusflow", Duration.ofMinutes(15));
 
-        String token = jwtService(props).generateAccessToken(42L, "an@student.edu.vn", List.of("ROLE_STUDENT"));
+        String token = jwtService(props).generateAccessToken(42L, "an@student.edu.vn", true, List.of("ROLE_STUDENT"));
         Jwt jwt = jwtDecoder(props).decode(token);
 
         assertThat(jwt.getSubject()).isEqualTo("42");
         assertThat(jwt.getClaimAsString(JwtService.CLAIM_EMAIL)).isEqualTo("an@student.edu.vn");
         assertThat(jwt.getClaimAsStringList(JwtService.CLAIM_ROLES)).containsExactly("ROLE_STUDENT");
+        assertThat(jwt.getClaimAsBoolean(JwtService.CLAIM_EMAIL_VERIFIED)).isTrue();
         assertThat(jwt.getExpiresAt()).isAfter(jwt.getIssuedAt());
     }
 
@@ -53,7 +54,7 @@ class JwtServiceTest {
         JwtProperties props = properties(SECRET, "campusflow", Duration.ofMinutes(15));
         JwtProperties otherProps = properties("another-secret-another-secret-another", "campusflow", Duration.ofMinutes(15));
 
-        String token = jwtService(otherProps).generateAccessToken(1L, "a@b.vn", List.of("ROLE_STUDENT"));
+        String token = jwtService(otherProps).generateAccessToken(1L, "a@b.vn", false, List.of("ROLE_STUDENT"));
 
         assertThatThrownBy(() -> jwtDecoder(props).decode(token)).isInstanceOf(JwtException.class);
     }
@@ -63,7 +64,7 @@ class JwtServiceTest {
         JwtProperties props = properties(SECRET, "campusflow", Duration.ofMinutes(15));
         JwtProperties otherIssuer = properties(SECRET, "someone-else", Duration.ofMinutes(15));
 
-        String token = jwtService(otherIssuer).generateAccessToken(1L, "a@b.vn", List.of("ROLE_STUDENT"));
+        String token = jwtService(otherIssuer).generateAccessToken(1L, "a@b.vn", false, List.of("ROLE_STUDENT"));
 
         assertThatThrownBy(() -> jwtDecoder(props).decode(token)).isInstanceOf(JwtException.class);
     }

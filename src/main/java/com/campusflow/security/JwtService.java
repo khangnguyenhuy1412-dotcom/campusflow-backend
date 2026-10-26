@@ -21,11 +21,14 @@ public class JwtService {
 
     public static final String CLAIM_EMAIL = "email";
     public static final String CLAIM_ROLES = "roles";
+    public static final String CLAIM_EMAIL_VERIFIED = "email_verified";
+    /** Granted to tokens of users who verified their student email. */
+    public static final String AUTHORITY_EMAIL_VERIFIED = "EMAIL_VERIFIED";
 
     private final JwtEncoder jwtEncoder;
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(Long userId, String email, Collection<String> roles) {
+    public String generateAccessToken(Long userId, String email, boolean emailVerified, Collection<String> roles) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(jwtProperties.issuer())
@@ -33,6 +36,7 @@ public class JwtService {
                 .expiresAt(now.plus(jwtProperties.accessTokenTtl()))
                 .subject(userId.toString())
                 .claim(CLAIM_EMAIL, email)
+                .claim(CLAIM_EMAIL_VERIFIED, emailVerified)
                 .claim(CLAIM_ROLES, List.copyOf(roles))
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
