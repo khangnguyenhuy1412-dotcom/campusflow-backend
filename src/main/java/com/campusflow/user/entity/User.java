@@ -73,6 +73,11 @@ public class User {
     @Column(name = "is_active")
     private boolean active = true;
 
+    /** Whether important notifications are also sent by email. */
+    @Builder.Default
+    @Column(name = "email_notifications", nullable = false)
+    private boolean emailNotifications = true;
+
     // Roles are few and always needed to build tokens, so load them eagerly
     @Builder.Default
     @ManyToMany(fetch = FetchType.EAGER)

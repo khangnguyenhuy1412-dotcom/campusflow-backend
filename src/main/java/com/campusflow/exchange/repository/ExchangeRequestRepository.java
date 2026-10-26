@@ -9,7 +9,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,15 +42,6 @@ public interface ExchangeRequestRepository extends JpaRepository<ExchangeRequest
 
     List<ExchangeRequest> findByItemIdAndStatus(Long itemId, ExchangeStatus status);
 
-    /**
-     * Closes open requests that offer an item which can no longer be traded (deleted or already traded).
-     * Bulk updates skip Hibernate's version check, so the version is bumped here by hand.
-     */
-    @Modifying(flushAutomatically = true)
-    @Query("""
-            update ExchangeRequest r
-            set r.status = :newStatus, r.updatedAt = CURRENT_TIMESTAMP, r.version = r.version + 1
-            where r.offeredItem.id = :itemId and r.status = com.campusflow.exchange.entity.ExchangeStatus.PENDING
-            """)
-    int closePendingOffering(@Param("itemId") Long itemId, @Param("newStatus") ExchangeStatus newStatus);
+    @EntityGraph(attributePaths = {"item", "item.owner", "requester"})
+    List<ExchangeRequest> findByOfferedItemIdAndStatus(Long offeredItemId, ExchangeStatus status);
 }

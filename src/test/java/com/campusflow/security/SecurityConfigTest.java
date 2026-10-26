@@ -176,7 +176,7 @@ class SecurityConfigTest {
     @Test
     void protectedEndpointWithValidTokenReturns200() throws Exception {
         when(userService.getById(1L)).thenReturn(new UserResponse(
-                1L, "an@student.edu.vn", "An", null, null, null, null, null, 0, false, List.of("ROLE_STUDENT"), null));
+                1L, "an@student.edu.vn", "An", null, null, null, null, null, 0, false, true, List.of("ROLE_STUDENT"), null));
 
         mockMvc.perform(get("/api/users/me").header("Authorization", bearer("ROLE_STUDENT")))
                 .andExpect(status().isOk())

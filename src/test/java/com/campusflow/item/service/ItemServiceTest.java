@@ -6,11 +6,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.campusflow.category.entity.Category;
 import com.campusflow.category.service.CategoryService;
 import com.campusflow.common.exception.ApiException;
-import com.campusflow.exchange.repository.ExchangeRequestRepository;
+import com.campusflow.exchange.entity.ExchangeRequest;
+import com.campusflow.exchange.service.ExchangeService;
 import com.campusflow.item.dto.ItemDetailResponse;
 import com.campusflow.item.dto.ItemRequest;
 import com.campusflow.item.dto.ItemSearchCriteria;
@@ -44,7 +46,7 @@ class ItemServiceTest {
     @Mock
     private CategoryService categoryService;
     @Mock
-    private ExchangeRequestRepository exchangeRequestRepository;
+    private ExchangeService exchangeService;
     @Mock
     private StoredFileCleanup storedFileCleanup;
     @InjectMocks
@@ -131,10 +133,12 @@ class ItemServiceTest {
     void deleteRemovesImagesAfterCommitAndClosesOffers() {
         Item item = existing(ItemStatus.AVAILABLE);
         item.getImages().add(ItemImage.builder().imageUrl("/uploads/a.jpg").thumbnailUrl("/uploads/a_t.jpg").build());
+        ExchangeRequest offering = ExchangeRequest.builder().id(100L).offeredItem(item).build();
+        when(exchangeService.cancelOpenOffersOf(item)).thenReturn(List.of(offering));
 
         service.delete(1L, 10L);
 
-        verify(exchangeRequestRepository).closePendingOffering(any(), any());
+        assertThat(offering.getOfferedItem()).as("no reference to the deleted item").isNull();
         verify(itemRepository).delete(item);
         verify(storedFileCleanup).deleteAfterCommit(List.of("/uploads/a.jpg", "/uploads/a_t.jpg"));
     }

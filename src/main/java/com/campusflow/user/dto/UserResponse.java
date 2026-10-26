@@ -17,6 +17,7 @@ public record UserResponse(
         BigDecimal reputationScore,
         int reviewCount,
         boolean verified,
+        boolean emailNotifications,
         List<String> roles,
         Instant createdAt) {
 
@@ -32,6 +33,7 @@ public record UserResponse(
                 user.getReputationScore(),
                 user.getReviewCount(),
                 user.isVerified(),
+                user.isEmailNotifications(),
                 user.getRoles().stream().map(Role::getName).sorted().toList(),
                 user.getCreatedAt());
     }

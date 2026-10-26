@@ -5,8 +5,7 @@ import com.campusflow.category.service.CategoryService;
 import com.campusflow.common.dto.PageQuery;
 import com.campusflow.common.dto.PageResponse;
 import com.campusflow.common.exception.ApiException;
-import com.campusflow.exchange.entity.ExchangeStatus;
-import com.campusflow.exchange.repository.ExchangeRequestRepository;
+import com.campusflow.exchange.service.ExchangeService;
 import com.campusflow.item.dto.ItemDetailResponse;
 import com.campusflow.item.dto.ItemRequest;
 import com.campusflow.item.dto.ItemSearchCriteria;
@@ -42,7 +41,7 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final CategoryService categoryService;
-    private final ExchangeRequestRepository exchangeRequestRepository;
+    private final ExchangeService exchangeService;
     private final StoredFileCleanup storedFileCleanup;
 
     @Transactional(readOnly = true)
@@ -116,8 +115,9 @@ public class ItemService {
         if (!item.isEditable()) {
             throw ApiException.conflict("Items in an active or completed exchange cannot be deleted; hide them instead");
         }
-        // Requests that offered this item can no longer be fulfilled
-        exchangeRequestRepository.closePendingOffering(itemId, ExchangeStatus.CANCELLED);
+        // Requests that offered this item can no longer be fulfilled. They must stop pointing at the
+        // item before it is deleted (the database would set the column to NULL anyway).
+        exchangeService.cancelOpenOffersOf(item).forEach(request -> request.setOfferedItem(null));
 
         List<String> files = new ArrayList<>();
         for (ItemImage image : item.getImages()) {

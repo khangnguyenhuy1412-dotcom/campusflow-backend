@@ -1,5 +1,6 @@
 package com.campusflow.verification.mail;
 
+import com.campusflow.common.mail.AppMailProperties;
 import com.campusflow.verification.entity.VerificationPurpose;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -14,6 +14,8 @@ import com.campusflow.exchange.dto.CreateExchangeRequest;
 import com.campusflow.exchange.dto.ExchangeRequestResponse;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.entity.ExchangeStatus;
+import com.campusflow.exchange.event.ExchangeEvent;
+import com.campusflow.exchange.event.ExchangeEventType;
 import com.campusflow.exchange.repository.ExchangeRequestRepository;
 import com.campusflow.item.entity.Item;
 import com.campusflow.item.entity.ItemCondition;
@@ -27,9 +29,11 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +49,8 @@ class ExchangeServiceTest {
     private ItemRepository itemRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ApplicationEventPublisher events;
     @InjectMocks
     private ExchangeService service;
 
@@ -169,6 +175,34 @@ class ExchangeServiceTest {
         assertThat(wanted.getStatus()).isEqualTo(ItemStatus.IN_TRANSACTION);
         assertThat(offered.getStatus()).isEqualTo(ItemStatus.IN_TRANSACTION);
         assertThat(response.counterpartContact().email()).as("owner sees requester's contact").isEqualTo("req@hcmus.edu.vn");
+        verify(events).publishEvent(new ExchangeEvent(accepted, ExchangeEventType.ACCEPTED, OWNER));
+        verify(events).publishEvent(new ExchangeEvent(other, ExchangeEventType.AUTO_REJECTED, null));
+    }
+
+    @Test
+    void createPublishesRequestedEvent() {
+        item(10L, owner, ItemType.GIVEAWAY, ItemStatus.AVAILABLE);
+
+        service.create(REQUESTER, new CreateExchangeRequest(10L, null, null));
+
+        ArgumentCaptor<ExchangeEvent> event = ArgumentCaptor.forClass(ExchangeEvent.class);
+        verify(events).publishEvent(event.capture());
+        assertThat(event.getValue().type()).isEqualTo(ExchangeEventType.REQUESTED);
+        assertThat(event.getValue().actorId()).isEqualTo(REQUESTER);
+    }
+
+    @Test
+    void cancellingOffersOfAnItemAnnouncesEachAutomaticCancellation() {
+        Item offered = item(20L, requester, ItemType.EXCHANGE, ItemStatus.AVAILABLE);
+        ExchangeRequest pending = request(100L, item(10L, owner, ItemType.EXCHANGE, ItemStatus.AVAILABLE), offered,
+                ExchangeStatus.PENDING);
+        when(exchangeRequestRepository.findByOfferedItemIdAndStatus(20L, ExchangeStatus.PENDING))
+                .thenReturn(List.of(pending));
+
+        service.cancelOpenOffersOf(offered);
+
+        assertThat(pending.getStatus()).isEqualTo(ExchangeStatus.CANCELLED);
+        verify(events).publishEvent(new ExchangeEvent(pending, ExchangeEventType.AUTO_CANCELLED, null));
     }
 
     @Test
@@ -251,8 +285,9 @@ class ExchangeServiceTest {
         assertThat(request.getStatus()).isEqualTo(ExchangeStatus.COMPLETED);
         assertThat(wanted.getStatus()).isEqualTo(ItemStatus.COMPLETED);
         assertThat(offered.getStatus()).isEqualTo(ItemStatus.COMPLETED);
-        verify(exchangeRequestRepository).closePendingOffering(10L, ExchangeStatus.CANCELLED);
-        verify(exchangeRequestRepository).closePendingOffering(20L, ExchangeStatus.CANCELLED);
+        verify(exchangeRequestRepository).findByOfferedItemIdAndStatus(10L, ExchangeStatus.PENDING);
+        verify(exchangeRequestRepository).findByOfferedItemIdAndStatus(20L, ExchangeStatus.PENDING);
+        verify(events).publishEvent(new ExchangeEvent(request, ExchangeEventType.COMPLETED, OWNER));
     }
 
     @Test
@@ -261,6 +296,6 @@ class ExchangeServiceTest {
 
         assertThatThrownBy(() -> service.complete(REQUESTER, 100L))
                 .satisfies(e -> assertThat(statusOf(e)).isEqualTo(HttpStatus.FORBIDDEN));
-        verify(exchangeRequestRepository, never()).closePendingOffering(any(), any());
+        verify(events, never()).publishEvent(any());
     }
 }

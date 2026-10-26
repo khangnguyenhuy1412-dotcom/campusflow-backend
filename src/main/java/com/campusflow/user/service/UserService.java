@@ -5,6 +5,7 @@ import com.campusflow.storage.FileStorage;
 import com.campusflow.storage.ImageProcessor;
 import com.campusflow.storage.ImageProcessor.ProcessedImage;
 import com.campusflow.storage.StoredFileCleanup;
+import com.campusflow.user.dto.NotificationSettingsRequest;
 import com.campusflow.user.dto.PublicProfileResponse;
 import com.campusflow.user.dto.UpdateProfileRequest;
 import com.campusflow.user.dto.UserResponse;
@@ -59,6 +60,13 @@ public class UserService {
         if (oldUrl != null) {
             storedFileCleanup.deleteAfterCommit(List.of(oldUrl));
         }
+        return UserResponse.from(user);
+    }
+
+    @Transactional
+    public UserResponse updateNotificationSettings(Long userId, NotificationSettingsRequest request) {
+        User user = getActiveUser(userId);
+        user.setEmailNotifications(request.emailNotifications());
         return UserResponse.from(user);
     }
 

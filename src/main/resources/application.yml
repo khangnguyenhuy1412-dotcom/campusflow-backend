@@ -68,6 +68,10 @@ app:
   student-email:
     # Email domains accepted at sign-up; "edu.vn" matches any *.edu.vn domain
     allowed-domain-suffixes: ${STUDENT_EMAIL_DOMAINS:edu.vn}
+  housekeeping:
+    # Every night at 03:00 (Vietnam time): delete old read notifications, expired tokens and codes
+    cron: ${HOUSEKEEPING_CRON:0 0 3 * * *}
+    notification-retention: 90d
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
   storage:

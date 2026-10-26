@@ -16,6 +16,7 @@ import com.campusflow.item.entity.Item;
 import com.campusflow.review.dto.ReviewRequest;
 import com.campusflow.review.dto.ReviewResponse;
 import com.campusflow.review.entity.Review;
+import com.campusflow.review.event.ReviewCreatedEvent;
 import com.campusflow.review.repository.RatingStats;
 import com.campusflow.review.repository.ReviewRepository;
 import com.campusflow.user.entity.User;
@@ -28,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +41,8 @@ class ReviewServiceTest {
     private ExchangeRequestRepository exchangeRequestRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ApplicationEventPublisher events;
     @InjectMocks
     private ReviewService service;
 
@@ -70,6 +74,7 @@ class ReviewServiceTest {
         assertThat(response.comment()).isEqualTo("Great");
         assertThat(owner.getReputationScore()).isEqualByComparingTo("4.67");
         assertThat(owner.getReviewCount()).isEqualTo(3);
+        verify(events).publishEvent(new ReviewCreatedEvent(saved.getValue()));
     }
 
     @Test
