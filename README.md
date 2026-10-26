@@ -18,7 +18,7 @@ Hệ thống hỗ trợ 3 hình thức: **Cho tặng (0đ)**, **Trao đổi ngan
 ## 🛠 Tech Stack
 
 - **Ngôn ngữ & Framework**: Java 21, Spring Boot 4.x
-- **Bảo mật**: Spring Security 6, JWT (JSON Web Token)
+- **Bảo mật**: Spring Security 7, JWT (OAuth2 Resource Server, HS256) + Refresh Token
 - **Cơ sở dữ liệu**: MySQL 8.x
 - **ORM & Data Access**: Spring Data JPA / Hibernate
 - **Containerization**: Docker & Docker Compose
@@ -57,12 +57,18 @@ Cú pháp: `<type>(<scope>): <mô tả ngắn>`
 - Docker Desktop & Docker Compose
 - Maven (hoặc dùng `./mvnw`)
 
-### 2. Khởi động Cơ sở dữ liệu (Docker)
+### 2. Cấu hình biến môi trường
+```bash
+cp .env.example .env
+```
+Bắt buộc đặt `JWT_SECRET` (tối thiểu 32 ký tự), ví dụ: `openssl rand -base64 48`. File `.env` được Spring Boot tự động nạp khi chạy cục bộ.
+
+### 3. Khởi động Cơ sở dữ liệu (Docker)
 ```bash
 docker compose up -d
 ```
 
-### 3. Khởi chạy Backend
+### 4. Khởi chạy Backend
 ```bash
 # Windows
 .\mvnw.cmd spring-boot:run

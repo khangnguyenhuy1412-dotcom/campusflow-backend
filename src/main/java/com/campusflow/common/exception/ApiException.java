@@ -1,0 +1,28 @@
+package com.campusflow.common.exception;
+
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+/** Base class for business errors that map directly to an HTTP status. */
+@Getter
+public class ApiException extends RuntimeException {
+
+    private final HttpStatus status;
+
+    public ApiException(HttpStatus status, String message) {
+        super(message);
+        this.status = status;
+    }
+
+    public static ApiException notFound(String message) {
+        return new ApiException(HttpStatus.NOT_FOUND, message);
+    }
+
+    public static ApiException conflict(String message) {
+        return new ApiException(HttpStatus.CONFLICT, message);
+    }
+
+    public static ApiException unauthorized(String message) {
+        return new ApiException(HttpStatus.UNAUTHORIZED, message);
+    }
+}
