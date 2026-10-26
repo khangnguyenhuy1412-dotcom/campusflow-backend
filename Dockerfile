@@ -11,7 +11,8 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 # Run as non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && mkdir -p /app/uploads && chown appuser:appgroup /app/uploads
 USER appuser
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080

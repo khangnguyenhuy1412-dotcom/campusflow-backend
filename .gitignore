@@ -32,6 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 
+### Uploaded files (local storage) ###
+uploads/
+
 ### Environment & Secret Files ###
 .env
 .env.*

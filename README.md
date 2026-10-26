@@ -50,6 +50,41 @@ Cú pháp: `<type>(<scope>): <mô tả ngắn>`
 
 ---
 
+## 🧱 Quy ước mã nguồn (Code Conventions)
+
+**Cấu trúc theo tính năng** — mỗi tính năng là một package `com.campusflow.<feature>` gồm:
+`controller/` → `service/` → `repository/` → `entity/`, cùng `dto/` cho request/response.
+Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `storage/`.
+
+| Quy tắc | Lý do |
+|---|---|
+| Controller chỉ nhận/trả **DTO (Java record)**, không bao giờ trả Entity | Tránh lộ dữ liệu (mật khẩu, email) và mass-assignment |
+| Validate input bằng Bean Validation (`@Valid`, `@NotBlank`, `@Size`...) | Chặn dữ liệu sai ngay tại biên |
+| Quy tắc nghiệp vụ & **kiểm tra quyền sở hữu** nằm trong Service | Tránh IDOR (sửa/xem dữ liệu của người khác) |
+| Lỗi nghiệp vụ ném `ApiException` → JSON [ProblemDetail (RFC 9457)](https://www.rfc-editor.org/rfc/rfc9457) | Mọi lỗi có cùng định dạng |
+| Thay đổi CSDL **chỉ** qua migration Flyway mới (`V<n>__mo_ta.sql`), không sửa migration đã chạy | Đồng bộ schema giữa các máy |
+| Bảng có cạnh tranh ghi (items, exchange_requests) dùng `@Version` | Optimistic locking, tránh ghi đè lẫn nhau |
+| Danh sách luôn phân trang (`PageQuery`, tối đa 50) và sort theo whitelist | Tránh truy vấn quá nặng |
+| Mỗi service có unit test cho quy tắc nghiệp vụ | Đảm bảo không hồi quy |
+
+## 🔌 Tổng quan API (Phase 1)
+
+| Nhóm | Endpoint chính | Quyền |
+|---|---|---|
+| Auth | `POST /api/auth/register · login · refresh · logout · verify-email · resend-verification · forgot-password · reset-password` | Công khai |
+| Danh mục | `GET /api/categories` · `POST/PUT/DELETE /api/admin/categories` | Công khai · ADMIN |
+| Tin đăng | `GET /api/items` (tìm kiếm, lọc, sắp xếp) · `GET /api/items/{id}` | Công khai |
+| | `POST /api/items` · `PUT/DELETE /api/items/{id}` · `POST /{id}/hide · /{id}/show` | Đã xác thực email |
+| Hình ảnh | `POST /api/items/{id}/images` (multipart, tối đa 5) · `DELETE /{imageId}` · `PUT /{imageId}/primary` | Chủ tin đăng |
+| Trao đổi | `POST /api/exchange-requests` · `GET /sent · /received · /{id}` · `POST /{id}/accept · reject · cancel · complete` | Đã xác thực email |
+| Đánh giá | `POST /api/exchange-requests/{id}/reviews` | Người tham gia giao dịch đã hoàn tất |
+| Người dùng | `GET/PUT /api/users/me` · `POST /me/avatar` · `PUT /me/password` · `GET /me/items` | Đăng nhập |
+| | `GET /api/users/{id}` · `/{id}/items` · `/{id}/reviews` | Công khai (không có email/SĐT) |
+
+Luồng trao đổi: `PENDING → ACCEPTED → COMPLETED` (hoặc `REJECTED` / `CANCELLED`). Email & SĐT của bên kia chỉ hiện khi yêu cầu đã được chấp nhận.
+
+---
+
 ## 🚀 Khởi chạy dự án cục bộ (Local Development)
 
 ### 1. Yêu cầu hệ thống

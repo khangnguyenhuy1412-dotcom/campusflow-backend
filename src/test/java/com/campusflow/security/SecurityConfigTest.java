@@ -10,6 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.campusflow.auth.controller.AuthController;
 import com.campusflow.auth.dto.AuthResponse;
 import com.campusflow.auth.service.AuthService;
+import com.campusflow.auth.service.PasswordService;
+import com.campusflow.common.config.WebConfig;
+import com.campusflow.common.dto.PageResponse;
+import com.campusflow.item.service.ItemService;
+import com.campusflow.review.service.ReviewService;
+import com.campusflow.storage.StorageProperties;
+import com.campusflow.user.dto.PublicProfileResponse;
 import com.campusflow.user.controller.UserController;
 import com.campusflow.user.dto.UserResponse;
 import com.campusflow.user.service.UserService;
@@ -29,10 +36,12 @@ import org.springframework.test.web.servlet.MockMvc;
                 "app.jwt.secret=test-secret-test-secret-test-secret-123",
                 "app.jwt.issuer=campusflow",
                 "app.jwt.access-token-ttl=15m",
-                "app.jwt.refresh-token-ttl=7d"
+                "app.jwt.refresh-token-ttl=7d",
+                "app.storage.local-root=target/test-uploads",
+                "app.storage.public-url-prefix=/uploads"
         })
-@Import({SecurityConfig.class, JwtConfig.class, JwtService.class, SecurityErrorHandler.class})
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class})
+@Import({SecurityConfig.class, JwtConfig.class, JwtService.class, SecurityErrorHandler.class, WebConfig.class})
+@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, StorageProperties.class})
 class SecurityConfigTest {
 
     @Autowired
@@ -49,6 +58,48 @@ class SecurityConfigTest {
 
     @MockitoBean
     private CustomUserDetailsService userDetailsService;
+
+    @MockitoBean
+    private PasswordService passwordService;
+
+    @MockitoBean
+    private ItemService itemService;
+
+    @MockitoBean
+    private ReviewService reviewService;
+
+    @Test
+    void publicProfileIsVisibleWithoutLogin() throws Exception {
+        when(userService.getPublicProfile(5L)).thenReturn(new PublicProfileResponse(
+                5L, "Binh", null, "HCMUS", null, 0, true, null));
+
+        mockMvc.perform(get("/api/users/5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fullName").value("Binh"))
+                .andExpect(jsonPath("$.email").doesNotExist());
+    }
+
+    @Test
+    void ownAccountEndpointsNeedLoginEvenForGet() throws Exception {
+        mockMvc.perform(get("/api/users/me/items")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void currentUserIdComesFromTokenSubject() throws Exception {
+        when(itemService.listMine(1L, null, null, null))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
+
+        mockMvc.perform(get("/api/users/me/items").header("Authorization", unverifiedBearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void uploadedFilesArePublic() throws Exception {
+        // File does not exist: 404 (not 401) shows security lets the request through
+        mockMvc.perform(get("/uploads/items/missing.jpg")).andExpect(status().isNotFound());
+    }
 
     private String bearer(String... roles) {
         return "Bearer " + jwtService.generateAccessToken(1L, "an@student.edu.vn", true, List.of(roles));
@@ -104,7 +155,7 @@ class SecurityConfigTest {
     @Test
     void protectedEndpointWithValidTokenReturns200() throws Exception {
         when(userService.getById(1L)).thenReturn(new UserResponse(
-                1L, "an@student.edu.vn", "An", null, null, null, null, null, false, List.of("ROLE_STUDENT"), null));
+                1L, "an@student.edu.vn", "An", null, null, null, null, null, 0, false, List.of("ROLE_STUDENT"), null));
 
         mockMvc.perform(get("/api/users/me").header("Authorization", bearer("ROLE_STUDENT")))
                 .andExpect(status().isOk())

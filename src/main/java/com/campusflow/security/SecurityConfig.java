@@ -25,6 +25,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
+            "/uploads/**",
             "/error",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -33,7 +34,16 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/api/items/**",
-            "/api/categories/**"
+            "/api/categories/**",
+            "/api/users/*",
+            "/api/users/*/items",
+            "/api/users/*/reviews"
+    };
+
+    // The user's own account; must be matched before the public /api/users/* rules above
+    private static final String[] OWN_ACCOUNT_ENDPOINTS = {
+            "/api/users/me",
+            "/api/users/me/**"
     };
 
     // Creating or changing listings and exchanges requires a verified student email
@@ -53,6 +63,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(OWN_ACCOUNT_ENDPOINTS).authenticated()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)

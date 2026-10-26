@@ -24,15 +24,23 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+        # Loads lazy collections (e.g. item images) for a whole page in one query instead of one per row
+        default_batch_fetch_size: 50
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 30MB
 
   flyway:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
 
-  # Defaults point at Mailpit from docker-compose; set these in .env for a real SMTP server
+  # Defaults point at Mailpit from docker-compose; set these in .env for a real SMTP server.
+  # 127.0.0.1 instead of localhost: on Windows "localhost" tries IPv6 first and Docker only listens on IPv4
   mail:
-    host: ${MAIL_HOST:localhost}
+    host: ${MAIL_HOST:127.0.0.1}
     port: ${MAIL_PORT:1025}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
@@ -57,6 +65,10 @@ app:
   student-email:
     # Email domains accepted at sign-up; "edu.vn" matches any *.edu.vn domain
     allowed-domain-suffixes: ${STUDENT_EMAIL_DOMAINS:edu.vn}
+  storage:
+    local-root: ${STORAGE_LOCAL_ROOT:./uploads}
+    # Must match the "/uploads/**" rule in SecurityConfig
+    public-url-prefix: /uploads
   verification:
     code-ttl: 10m
     max-attempts: 5

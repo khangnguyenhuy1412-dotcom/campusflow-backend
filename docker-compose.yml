@@ -40,6 +40,9 @@ services:
     image: axllent/mailpit:latest
     container_name: campusflow-mailpit
     restart: unless-stopped
+    environment:
+      # Skip reverse-DNS of each client; it adds seconds to every email on Docker Desktop
+      MP_SMTP_DISABLE_RDNS: "true"
     ports:
       - "${MAIL_PORT:-1025}:1025"
       - "${MAILPIT_UI_PORT:-8025}:8025"

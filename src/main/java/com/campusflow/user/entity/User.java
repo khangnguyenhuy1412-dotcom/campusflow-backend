@@ -56,9 +56,13 @@ public class User {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
-    @Builder.Default
+    /** Average review rating (1.00 - 5.00); null until the user receives a first review. */
     @Column(name = "reputation_score", precision = 3, scale = 2)
-    private BigDecimal reputationScore = new BigDecimal("5.00");
+    private BigDecimal reputationScore;
+
+    @Builder.Default
+    @Column(name = "review_count", nullable = false)
+    private int reviewCount = 0;
 
     // Reserved for student-email verification
     @Builder.Default

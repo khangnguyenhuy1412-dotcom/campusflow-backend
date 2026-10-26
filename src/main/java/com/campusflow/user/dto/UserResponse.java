@@ -15,6 +15,7 @@ public record UserResponse(
         String phoneNumber,
         String avatarUrl,
         BigDecimal reputationScore,
+        int reviewCount,
         boolean verified,
         List<String> roles,
         Instant createdAt) {
@@ -29,6 +30,7 @@ public record UserResponse(
                 user.getPhoneNumber(),
                 user.getAvatarUrl(),
                 user.getReputationScore(),
+                user.getReviewCount(),
                 user.isVerified(),
                 user.getRoles().stream().map(Role::getName).sorted().toList(),
                 user.getCreatedAt());
