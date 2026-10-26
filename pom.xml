@@ -70,6 +70,22 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
+		<!-- Rate limiting (token buckets), kept in a bounded in-memory Caffeine cache -->
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j_jdk17-core</artifactId>
+			<version>8.21.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+		<!-- OpenAPI docs + Swagger UI at /swagger-ui.html (3.x line supports Spring Boot 4) -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>3.1.1</version>
+		</dependency>
 		<!-- Image resizing; applies EXIF orientation and writes clean files without metadata -->
 		<dependency>
 			<groupId>net.coobird</groupId>

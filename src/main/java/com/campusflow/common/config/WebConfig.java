@@ -1,6 +1,7 @@
 package com.campusflow.common.config;
 
 import com.campusflow.common.web.CurrentUserIdArgumentResolver;
+import com.campusflow.ratelimit.RateLimitInterceptor;
 import com.campusflow.storage.StorageProperties;
 import java.nio.file.Path;
 import java.util.List;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.CacheControl;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -17,6 +19,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private final StorageProperties storageProperties;
+    private final RateLimitInterceptor rateLimitInterceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/api/**");
+    }
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {

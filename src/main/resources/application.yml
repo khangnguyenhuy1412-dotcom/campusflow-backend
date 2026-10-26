@@ -1,5 +1,8 @@
 server:
   port: ${SERVER_PORT:8080}
+  # Set to "native" only when running behind a reverse proxy (Nginx, Render, Railway...), so the real
+  # client IP is read from X-Forwarded-For. Without a proxy, clients could fake that header.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
 
 spring:
   application:
@@ -65,6 +68,8 @@ app:
   student-email:
     # Email domains accepted at sign-up; "edu.vn" matches any *.edu.vn domain
     allowed-domain-suffixes: ${STUDENT_EMAIL_DOMAINS:edu.vn}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
   storage:
     local-root: ${STORAGE_LOCAL_ROOT:./uploads}
     # Must match the "/uploads/**" rule in SecurityConfig
@@ -73,3 +78,14 @@ app:
     code-ttl: 10m
     max-attempts: 5
     resend-cooldown: 60s
+
+# API docs: Swagger UI at /swagger-ui.html, OpenAPI JSON at /v3/api-docs
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
+    # Keep the JWT entered in "Authorize" after a page reload
+    persist-authorization: true
+    operations-sorter: method
+  default-produces-media-type: application/json

@@ -83,6 +83,28 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 
 Luồng trao đổi: `PENDING → ACCEPTED → COMPLETED` (hoặc `REJECTED` / `CANCELLED`). Email & SĐT của bên kia chỉ hiện khi yêu cầu đã được chấp nhận.
 
+### 📖 Tài liệu API (Swagger UI)
+Khi chạy cục bộ: **http://localhost:8080/swagger-ui.html** (OpenAPI JSON: `/v3/api-docs`).
+Gọi `POST /api/auth/login` → copy `accessToken` → bấm **Authorize** và dán token để thử các API cần đăng nhập.
+Tắt ở môi trường production bằng `API_DOCS_ENABLED=false` nếu không muốn công khai.
+
+### 🛡️ Giới hạn tần suất (Rate Limiting)
+Vượt giới hạn → `429 Too Many Requests` kèm header `Retry-After` (giây). Cấu hình trong `RateLimitPolicy`.
+
+| Áp dụng cho | Giới hạn | Theo |
+|---|---|---|
+| Mọi request `/api/**` | 300 / phút | IP |
+| Đăng nhập | 20 / 15 phút · 10 / 15 phút | IP · email |
+| Đăng ký | 10 / giờ | IP |
+| Xác thực mã (verify email, reset password) | 20 / 15 phút | IP |
+| Gửi email (gửi lại mã, quên mật khẩu) | 10 / 15 phút | IP |
+| Đổi mật khẩu | 5 / 15 phút | Người dùng |
+| Upload ảnh | 30 / 10 phút | Người dùng |
+| Tạo tin đăng / yêu cầu trao đổi / đánh giá | 30 / giờ (dùng chung) | Người dùng |
+
+> Khi chạy sau reverse proxy (Nginx, Render, Railway...), đặt `FORWARD_HEADERS_STRATEGY=native` để lấy đúng IP người dùng.
+> Giới hạn lưu trong bộ nhớ của từng instance; khi chạy nhiều instance cần chuyển sang Redis.
+
 ---
 
 ## 🚀 Khởi chạy dự án cục bộ (Local Development)

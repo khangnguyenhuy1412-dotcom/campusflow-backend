@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,6 +15,10 @@ import com.campusflow.auth.service.PasswordService;
 import com.campusflow.common.config.WebConfig;
 import com.campusflow.common.dto.PageResponse;
 import com.campusflow.item.service.ItemService;
+import com.campusflow.ratelimit.RateLimitInterceptor;
+import com.campusflow.ratelimit.RateLimitPolicy;
+import com.campusflow.ratelimit.RateLimitProperties;
+import com.campusflow.ratelimit.RateLimiter;
 import com.campusflow.review.service.ReviewService;
 import com.campusflow.storage.StorageProperties;
 import com.campusflow.user.dto.PublicProfileResponse;
@@ -38,10 +43,13 @@ import org.springframework.test.web.servlet.MockMvc;
                 "app.jwt.access-token-ttl=15m",
                 "app.jwt.refresh-token-ttl=7d",
                 "app.storage.local-root=target/test-uploads",
-                "app.storage.public-url-prefix=/uploads"
+                "app.storage.public-url-prefix=/uploads",
+                "app.rate-limit.enabled=true"
         })
-@Import({SecurityConfig.class, JwtConfig.class, JwtService.class, SecurityErrorHandler.class, WebConfig.class})
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, StorageProperties.class})
+@Import({SecurityConfig.class, JwtConfig.class, JwtService.class, SecurityErrorHandler.class, WebConfig.class,
+        RateLimiter.class, RateLimitInterceptor.class})
+@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, StorageProperties.class,
+        RateLimitProperties.class})
 class SecurityConfigTest {
 
     @Autowired
@@ -67,6 +75,19 @@ class SecurityConfigTest {
 
     @MockitoBean
     private ReviewService reviewService;
+
+    @Test
+    void tooManyRequestsReturns429WithRetryAfter() throws Exception {
+        String body = "{\"email\":\"an@student.edu.vn\"}";
+        for (int i = 0; i < RateLimitPolicy.SEND_EMAIL.capacity(); i++) {
+            mockMvc.perform(post("/api/auth/forgot-password").contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isAccepted());
+        }
+        mockMvc.perform(post("/api/auth/forgot-password").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"))
+                .andExpect(jsonPath("$.status").value(429));
+    }
 
     @Test
     void publicProfileIsVisibleWithoutLogin() throws Exception {
