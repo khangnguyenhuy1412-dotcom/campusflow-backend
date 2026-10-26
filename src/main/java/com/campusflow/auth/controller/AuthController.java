@@ -4,6 +4,8 @@ import com.campusflow.auth.dto.AuthResponse;
 import com.campusflow.auth.dto.LoginRequest;
 import com.campusflow.auth.dto.RefreshTokenRequest;
 import com.campusflow.auth.dto.RegisterRequest;
+import com.campusflow.auth.dto.ResendVerificationRequest;
+import com.campusflow.auth.dto.VerifyEmailRequest;
 import com.campusflow.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,17 @@ public class AuthController {
     @PostMapping("/refresh")
     public AuthResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
         return authService.refresh(request.refreshToken());
+    }
+
+    @PostMapping("/verify-email")
+    public AuthResponse verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        return authService.verifyEmail(request);
+    }
+
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        authService.resendVerificationCode(request.email());
     }
 
     @PostMapping("/logout")

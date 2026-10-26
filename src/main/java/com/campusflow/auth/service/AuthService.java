@@ -3,6 +3,7 @@ package com.campusflow.auth.service;
 import com.campusflow.auth.dto.AuthResponse;
 import com.campusflow.auth.dto.LoginRequest;
 import com.campusflow.auth.dto.RegisterRequest;
+import com.campusflow.auth.dto.VerifyEmailRequest;
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.security.AppUserPrincipal;
 import com.campusflow.security.JwtService;
@@ -11,9 +12,12 @@ import com.campusflow.user.entity.Role;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.RoleRepository;
 import com.campusflow.user.repository.UserRepository;
+import com.campusflow.verification.StudentEmailPolicy;
+import com.campusflow.verification.VerificationService;
 import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -31,11 +35,17 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final StudentEmailPolicy studentEmailPolicy;
+    private final VerificationService verificationService;
 
-    // TODO: restrict to student email domains and require verification (users.is_verified)
+    /** Creates an unverified account and emails a verification code. The user can browse until verified. */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         String email = normalizeEmail(request.email());
+        if (!studentEmailPolicy.isStudentEmail(email)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Please register with your student email (*."
+                    + String.join(", *.", studentEmailPolicy.allowedSuffixes()) + ")");
+        }
         if (userRepository.existsByEmail(email)) {
             throw ApiException.conflict("Email is already registered");
         }
@@ -50,7 +60,18 @@ public class AuthService {
                 .university(request.university())
                 .roles(Set.of(studentRole))
                 .build());
+        verificationService.issueEmailVerificationCode(user);
         return issueTokens(user, refreshTokenService.create(user));
+    }
+
+    /** Verifies the student email and returns new tokens that carry the verified status. */
+    public AuthResponse verifyEmail(VerifyEmailRequest request) {
+        User user = verificationService.verifyEmail(request.email(), request.code());
+        return issueTokens(user, refreshTokenService.create(user));
+    }
+
+    public void resendVerificationCode(String email) {
+        verificationService.resendEmailVerificationCode(email);
     }
 
     @Transactional
@@ -73,7 +94,8 @@ public class AuthService {
 
     private AuthResponse issueTokens(User user, String refreshToken) {
         UserResponse userResponse = UserResponse.from(user);
-        String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), userResponse.roles());
+        String accessToken = jwtService.generateAccessToken(
+                user.getId(), user.getEmail(), user.isVerified(), userResponse.roles());
         return AuthResponse.bearer(accessToken, refreshToken, jwtService.accessTokenTtlSeconds(), userResponse);
     }
 

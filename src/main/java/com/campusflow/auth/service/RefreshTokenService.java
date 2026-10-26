@@ -3,15 +3,12 @@ package com.campusflow.auth.service;
 import com.campusflow.auth.entity.RefreshToken;
 import com.campusflow.auth.repository.RefreshTokenRepository;
 import com.campusflow.common.exception.ApiException;
+import com.campusflow.common.util.Hashing;
 import com.campusflow.security.JwtProperties;
 import com.campusflow.user.entity.User;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -86,11 +83,6 @@ public class RefreshTokenService {
     }
 
     static String hash(String rawToken) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
+        return Hashing.sha256Hex(rawToken);
     }
 }

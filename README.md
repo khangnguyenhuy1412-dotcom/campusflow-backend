@@ -63,10 +63,12 @@ cp .env.example .env
 ```
 Bắt buộc đặt `JWT_SECRET` (tối thiểu 32 ký tự), ví dụ: `openssl rand -base64 48`. File `.env` được Spring Boot tự động nạp khi chạy cục bộ.
 
-### 3. Khởi động Cơ sở dữ liệu (Docker)
+### 3. Khởi động Cơ sở dữ liệu & Mail (Docker)
 ```bash
 docker compose up -d
 ```
+- MySQL: cổng `DB_PORT` (mặc định 3306), phpMyAdmin: http://localhost:8088
+- Mailpit (hộp thư giả lập): http://localhost:8025 — mọi email (mã xác thực sinh viên) đều hiện ở đây, không gửi ra ngoài.
 
 ### 4. Khởi chạy Backend
 ```bash

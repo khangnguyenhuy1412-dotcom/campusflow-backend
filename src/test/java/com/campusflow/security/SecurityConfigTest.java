@@ -51,7 +51,39 @@ class SecurityConfigTest {
     private CustomUserDetailsService userDetailsService;
 
     private String bearer(String... roles) {
-        return "Bearer " + jwtService.generateAccessToken(1L, "an@student.edu.vn", List.of(roles));
+        return "Bearer " + jwtService.generateAccessToken(1L, "an@student.edu.vn", true, List.of(roles));
+    }
+
+    private String unverifiedBearer() {
+        return "Bearer " + jwtService.generateAccessToken(1L, "an@student.edu.vn", false, List.of("ROLE_STUDENT"));
+    }
+
+    @Test
+    void unverifiedStudentCannotCreateItems() throws Exception {
+        mockMvc.perform(post("/api/items").header("Authorization", unverifiedBearer()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unverifiedStudentCanStillBrowseItems() throws Exception {
+        // No items controller yet: 404 means security let the request through
+        mockMvc.perform(get("/api/items").header("Authorization", unverifiedBearer()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void verifiedStudentPassesItemWriteRule() throws Exception {
+        mockMvc.perform(post("/api/items").header("Authorization", bearer("ROLE_STUDENT")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void verifyEmailIsPublicAndValidatesCode() throws Exception {
+        mockMvc.perform(post("/api/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"an@student.edu.vn\",\"code\":\"12ab\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.code").value("must be a 6-digit code"));
     }
 
     @Test

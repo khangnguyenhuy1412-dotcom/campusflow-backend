@@ -35,6 +35,17 @@ services:
     networks:
       - campusflow-network
 
+  # Fake SMTP server for local development: catches every email, view them at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: campusflow-mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAIL_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks:
+      - campusflow-network
+
 volumes:
   mysql_data:
     driver: local
