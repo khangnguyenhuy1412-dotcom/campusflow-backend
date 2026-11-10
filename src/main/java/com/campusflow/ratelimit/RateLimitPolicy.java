@@ -33,7 +33,9 @@ public enum RateLimitPolicy {
     /** New items, exchange requests and reviews per user (shared budget against spam). */
     CREATE_CONTENT(30, Duration.ofHours(1)),
     /** Chat messages and new conversations per user: enough for a real conversation, not for flooding. */
-    CHAT_MESSAGE(30, Duration.ofMinutes(1));
+    CHAT_MESSAGE(30, Duration.ofMinutes(1)),
+    /** Reports per user, so the moderation queue cannot be flooded. */
+    REPORT(10, Duration.ofHours(1));
 
     private final long capacity;
     private final Duration period;

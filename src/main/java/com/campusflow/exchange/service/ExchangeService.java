@@ -1,5 +1,6 @@
 package com.campusflow.exchange.service;
 
+import com.campusflow.block.service.BlockService;
 import com.campusflow.common.dto.PageQuery;
 import com.campusflow.common.dto.PageResponse;
 import com.campusflow.common.exception.ApiException;
@@ -48,6 +49,7 @@ public class ExchangeService {
     private final UserRepository userRepository;
     private final ApplicationEventPublisher events;
     private final EntityManager entityManager;
+    private final BlockService blockService;
 
     @Transactional
     public ExchangeRequestResponse create(Long userId, CreateExchangeRequest request) {
@@ -60,6 +62,7 @@ public class ExchangeService {
         if (item.getStatus() != ItemStatus.AVAILABLE) {
             throw ApiException.conflict("This item is no longer available");
         }
+        blockService.requireNoBlock(userId, item.getOwner().getId());
         if (exchangeRequestRepository.existsByItemIdAndRequesterIdAndStatusIn(item.getId(), userId, ACTIVE)) {
             throw ApiException.conflict("You already have an open request for this item");
         }
@@ -157,6 +160,28 @@ public class ExchangeService {
                 exchangeRequestRepository.findByOfferedItemIdAndStatus(item.getId(), ExchangeStatus.PENDING);
         requests.forEach(request -> transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.AUTO_CANCELLED, null));
         return requests;
+    }
+
+    /**
+     * Ends every open deal around an item that left the marketplace (removed by a moderator or
+     * deleted by its owner) and notifies the people involved. Partner items that were reserved
+     * for those deals become available again. The caller sets the item's own new status.
+     */
+    @Transactional
+    public void closeAllFor(Item item) {
+        entityManager.refresh(item, LockModeType.PESSIMISTIC_WRITE);
+        for (ExchangeRequest request : exchangeRequestRepository.findByItemIdAndStatusIn(item.getId(), ACTIVE)) {
+            if (request.getStatus() == ExchangeStatus.ACCEPTED && request.getOfferedItem() != null) {
+                request.getOfferedItem().setStatus(ItemStatus.AVAILABLE);
+            }
+            transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.ITEM_REMOVED, null);
+        }
+        for (ExchangeRequest request : exchangeRequestRepository.findByOfferedItemIdAndStatusIn(item.getId(), ACTIVE)) {
+            if (request.getStatus() == ExchangeStatus.ACCEPTED) {
+                request.getItem().setStatus(ItemStatus.AVAILABLE);
+            }
+            transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.AUTO_CANCELLED, null);
+        }
     }
 
     /** Only the two participants can see a request; for anyone else it does not exist. */

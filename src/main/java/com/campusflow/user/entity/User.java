@@ -73,6 +73,13 @@ public class User {
     @Column(name = "is_active")
     private boolean active = true;
 
+    /** Set together with active = false when a moderator or admin bans the account. */
+    @Column(name = "banned_at")
+    private Instant bannedAt;
+
+    @Column(name = "ban_reason", length = 500)
+    private String banReason;
+
     /** Whether important notifications are also sent by email. */
     @Builder.Default
     @Column(name = "email_notifications", nullable = false)

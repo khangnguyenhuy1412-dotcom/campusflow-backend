@@ -12,5 +12,7 @@ public enum ExchangeEventType {
     CANCELLED,
     /** Cancelled by the system because the offered item is no longer available. */
     AUTO_CANCELLED,
+    /** Cancelled because the wanted item was removed by a moderator (or deleted). */
+    ITEM_REMOVED,
     COMPLETED
 }

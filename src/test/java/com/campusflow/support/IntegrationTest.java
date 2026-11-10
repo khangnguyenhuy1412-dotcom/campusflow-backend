@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -55,6 +56,9 @@ public abstract class IntegrationTest {
     @Autowired
     protected RecordingMailSender mail;
 
+    @Autowired
+    protected JdbcTemplate jdbcTemplate;
+
     @TestConfiguration(proxyBeanMethods = false)
     static class MailConfig {
 
@@ -88,6 +92,20 @@ public abstract class IntegrationTest {
                         .content(json(Map.of("email", user.email(), "code", code))))
                 .andExpect(status().isOk()));
         return toUser(body);
+    }
+
+    /** Logs in again, e.g. to get a token that carries newly granted roles. */
+    protected TestUser login(TestUser user) throws Exception {
+        return toUser(read(mockMvc.perform(withJson(post("/api/auth/login"),
+                        Map.of("email", user.email(), "password", PASSWORD)))
+                .andExpect(status().isOk())));
+    }
+
+    /** Gives a user a role directly in the database (there is no API to create the first admin) and logs in. */
+    protected TestUser withRole(TestUser user, String roleName) throws Exception {
+        jdbcTemplate.update("INSERT IGNORE INTO user_roles (user_id, role_id) SELECT ?, id FROM roles WHERE name = ?",
+                user.id(), roleName);
+        return login(user);
     }
 
     /** Adds the user's access token to a request. */

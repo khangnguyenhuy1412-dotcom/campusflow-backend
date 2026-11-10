@@ -1,5 +1,6 @@
 package com.campusflow.item.repository;
 
+import com.campusflow.common.util.SqlLike;
 import com.campusflow.item.dto.ItemSearchCriteria;
 import com.campusflow.item.entity.Item;
 import com.campusflow.item.entity.ItemStatus;
@@ -12,8 +13,6 @@ import org.springframework.data.jpa.domain.Specification;
 /** Builds the dynamic WHERE clause for the public item search. */
 public final class ItemSpecifications {
 
-    private static final char LIKE_ESCAPE = '\\';
-
     private ItemSpecifications() {
     }
 
@@ -25,10 +24,10 @@ public final class ItemSpecifications {
             predicates.add(cb.isTrue(root.get("owner").get("active")));
 
             if (hasText(criteria.keyword())) {
-                String pattern = "%" + escapeLike(criteria.keyword().trim().toLowerCase(Locale.ROOT)) + "%";
+                String pattern = SqlLike.contains(criteria.keyword());
                 predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("title")), pattern, LIKE_ESCAPE),
-                        cb.like(cb.lower(root.get("description")), pattern, LIKE_ESCAPE)));
+                        cb.like(cb.lower(root.get("title")), pattern, SqlLike.ESCAPE),
+                        cb.like(cb.lower(root.get("description")), pattern, SqlLike.ESCAPE)));
             }
             if (criteria.categoryId() != null) {
                 predicates.add(cb.equal(root.get("category").get("id"), criteria.categoryId()));
@@ -52,14 +51,6 @@ public final class ItemSpecifications {
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
-    }
-
-    /** Escapes LIKE wildcards so a search for "100%" matches the text "100%", not everything. */
-    static String escapeLike(String value) {
-        return value
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
     }
 
     private static boolean hasText(String value) {

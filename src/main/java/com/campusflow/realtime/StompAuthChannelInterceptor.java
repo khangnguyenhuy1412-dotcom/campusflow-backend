@@ -1,5 +1,6 @@
 package com.campusflow.realtime;
 
+import com.campusflow.security.AccountStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -10,6 +11,7 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -33,6 +35,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private final JwtDecoder jwtDecoder;
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
+    private final AccountStatusService accountStatusService;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -59,11 +62,15 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         if (header == null || !header.startsWith(BEARER_PREFIX)) {
             throw new BadCredentialsException("Missing bearer token in CONNECT frame");
         }
+        Jwt jwt;
         try {
-            Jwt jwt = jwtDecoder.decode(header.substring(BEARER_PREFIX.length()));
-            return jwtAuthenticationConverter.convert(jwt);
+            jwt = jwtDecoder.decode(header.substring(BEARER_PREFIX.length()));
         } catch (JwtException e) {
             throw new BadCredentialsException("Invalid or expired access token");
         }
+        if (!accountStatusService.isActive(Long.valueOf(jwt.getSubject()))) {
+            throw new DisabledException("Account is disabled");
+        }
+        return jwtAuthenticationConverter.convert(jwt);
     }
 }

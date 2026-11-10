@@ -44,4 +44,10 @@ public interface ExchangeRequestRepository extends JpaRepository<ExchangeRequest
 
     @EntityGraph(attributePaths = {"item", "item.owner", "requester"})
     List<ExchangeRequest> findByOfferedItemIdAndStatus(Long offeredItemId, ExchangeStatus status);
+
+    @EntityGraph(attributePaths = {"item", "item.owner", "requester", "offeredItem"})
+    List<ExchangeRequest> findByItemIdAndStatusIn(Long itemId, Collection<ExchangeStatus> statuses);
+
+    @EntityGraph(attributePaths = {"item", "item.owner", "requester", "offeredItem"})
+    List<ExchangeRequest> findByOfferedItemIdAndStatusIn(Long offeredItemId, Collection<ExchangeStatus> statuses);
 }

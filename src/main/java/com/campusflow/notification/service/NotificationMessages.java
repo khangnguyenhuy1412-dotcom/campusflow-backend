@@ -3,6 +3,9 @@ package com.campusflow.notification.service;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.event.ExchangeEvent;
 import com.campusflow.item.entity.Item;
+import com.campusflow.moderation.entity.Report;
+import com.campusflow.moderation.entity.ReportStatus;
+import com.campusflow.moderation.entity.ReportTargetType;
 import com.campusflow.notification.entity.NotificationType;
 import com.campusflow.review.entity.Review;
 import com.campusflow.user.entity.User;
@@ -57,6 +60,10 @@ public final class NotificationMessages {
                     "Yêu cầu của " + requester.getFullName() + " cho " + itemTitle
                             + " đã hủy vì món đồ họ đề nghị đổi không còn nữa.",
                     null, item, request);
+            case ITEM_REMOVED -> new NotificationDraft(requester, NotificationType.EXCHANGE_CANCELLED,
+                    "Yêu cầu đã bị hủy",
+                    itemTitle + " không còn trên CampusFlow nên yêu cầu của bạn đã bị hủy.",
+                    null, item, request);
             case COMPLETED -> new NotificationDraft(requester, NotificationType.EXCHANGE_COMPLETED,
                     "Giao dịch hoàn tất",
                     "Giao dịch " + itemTitle + " với " + owner.getFullName()
@@ -72,6 +79,30 @@ public final class NotificationMessages {
                 review.getReviewer().getFullName() + " đã đánh giá bạn " + review.getRating()
                         + "★ sau giao dịch " + quote(request.getItem().getTitle()) + ".",
                 review.getReviewer(), request.getItem(), request);
+    }
+
+    public static NotificationDraft forReportHandled(Report report) {
+        String target = report.getTargetType() == ReportTargetType.ITEM
+                ? "tin " + quote(report.getTargetItem().getTitle())
+                : "người dùng " + report.getTargetUser().getFullName();
+        String message = report.getStatus() == ReportStatus.DISMISSED
+                ? "Báo cáo của bạn về " + target + " đã được xem xét và chưa thấy vi phạm quy định."
+                : "Cảm ơn bạn! Báo cáo về " + target + " đã được xử lý.";
+        return new NotificationDraft(report.getReporter(), NotificationType.REPORT_RESOLVED,
+                "Báo cáo đã được xem xét", message, null, report.getTargetItem(), null);
+    }
+
+    /** The moderator is not named, to protect them from harassment. */
+    public static NotificationDraft forItemRemoved(Item item, String reason) {
+        String why = reason == null || reason.isBlank() ? "vi phạm quy định cộng đồng" : reason.strip();
+        return new NotificationDraft(item.getOwner(), NotificationType.ITEM_REMOVED,
+                "Tin " + quote(item.getTitle()) + " đã bị gỡ",
+                "Kiểm duyệt viên đã gỡ tin của bạn. Lý do: " + truncate(why, 300) + ".",
+                null, item, null);
+    }
+
+    private static String truncate(String text, int max) {
+        return text.length() <= max ? text : text.substring(0, max - 1) + "…";
     }
 
     private static String requestVerb(Item item) {

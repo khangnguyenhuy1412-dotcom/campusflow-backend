@@ -1,6 +1,8 @@
 package com.campusflow.notification.service;
 
 import com.campusflow.exchange.event.ExchangeEvent;
+import com.campusflow.moderation.event.ItemRemovedEvent;
+import com.campusflow.moderation.event.ReportHandledEvent;
 import com.campusflow.review.event.ReviewCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -24,5 +26,15 @@ public class NotificationEventListener {
     @EventListener
     public void onReviewCreated(ReviewCreatedEvent event) {
         notificationService.create(NotificationMessages.forReview(event.review()));
+    }
+
+    @EventListener
+    public void onReportHandled(ReportHandledEvent event) {
+        notificationService.create(NotificationMessages.forReportHandled(event.report()));
+    }
+
+    @EventListener
+    public void onItemRemoved(ItemRemovedEvent event) {
+        notificationService.create(NotificationMessages.forItemRemoved(event.item(), event.reason()));
     }
 }

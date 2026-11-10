@@ -3,6 +3,7 @@ package com.campusflow.category.controller;
 import com.campusflow.category.dto.CategoryRequest;
 import com.campusflow.category.dto.CategoryResponse;
 import com.campusflow.category.service.CategoryService;
+import com.campusflow.common.web.CurrentUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,20 +30,21 @@ public class AdminCategoryController {
     @Operation(summary = "Create a category")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CategoryResponse create(@Valid @RequestBody CategoryRequest request) {
-        return categoryService.create(request);
+    public CategoryResponse create(@CurrentUserId Long adminId, @Valid @RequestBody CategoryRequest request) {
+        return categoryService.create(adminId, request);
     }
 
     @Operation(summary = "Update a category")
     @PutMapping("/{id}")
-    public CategoryResponse update(@PathVariable Long id, @Valid @RequestBody CategoryRequest request) {
-        return categoryService.update(id, request);
+    public CategoryResponse update(@CurrentUserId Long adminId, @PathVariable Long id,
+            @Valid @RequestBody CategoryRequest request) {
+        return categoryService.update(adminId, id, request);
     }
 
     @Operation(summary = "Delete a category that has no items")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        categoryService.delete(id);
+    public void delete(@CurrentUserId Long adminId, @PathVariable Long id) {
+        categoryService.delete(adminId, id);
     }
 }

@@ -82,6 +82,9 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | | `GET /api/users/{id}` · `/{id}/items` · `/{id}/reviews` | Công khai (không có email/SĐT) |
 | Thông báo | `GET /api/notifications` · `GET /unread-count` · `POST /{id}/read` · `POST /read-all` · `DELETE /{id}` | Đăng nhập |
 | Nhắn tin | `POST /api/conversations` · `GET /api/conversations` · `/unread-count` · `/{id}` · `GET/POST /{id}/messages` · `POST /{id}/read` | Đăng nhập (gửi: đã xác thực email) |
+| Báo cáo & chặn | `POST /api/reports` · `POST/DELETE /api/blocks/{userId}` · `GET /api/blocks` | Đăng nhập (báo cáo: đã xác thực email) |
+| Kiểm duyệt | `GET /api/moderation/reports` · `POST /reports/{id}/resolve · dismiss` · `POST /items/{id}/remove · restore` · `POST /users/{id}/ban` | MODERATOR, ADMIN |
+| Quản trị | `GET /api/admin/stats` · `GET /api/admin/users` · `POST /users/{id}/ban · unban` · `PUT /users/{id}/moderator` · `GET /audit-logs` | ADMIN |
 
 Luồng trao đổi: `PENDING → ACCEPTED → COMPLETED` (hoặc `REJECTED` / `CANCELLED`). Email & SĐT của bên kia chỉ hiện khi yêu cầu đã được chấp nhận.
 
@@ -90,6 +93,17 @@ Mỗi thay đổi trạng thái giao dịch phát ra một domain event (`Exchan
 tạo thông báo **trong cùng transaction** (hành động bị rollback thì thông báo cũng không tồn tại).
 Các loại quan trọng (yêu cầu mới, được chấp nhận, bị hủy) được gửi thêm email sau khi commit; người dùng có thể tắt email.
 Job dọn dẹp chạy lúc 03:00 mỗi đêm: xóa thông báo đã đọc quá 90 ngày, refresh token và mã xác thực đã hết hạn.
+
+### 🛡️ An toàn & kiểm duyệt
+- Người dùng **báo cáo** tin đăng/người dùng (mỗi người chỉ một báo cáo đang mở cho mỗi đối tượng) và **chặn** người khác
+  (chặn hai chiều: không nhắn tin, không gửi yêu cầu trao đổi).
+- Kiểm duyệt viên xử lý hàng đợi báo cáo: **gỡ tin** (trạng thái `REMOVED`, chủ tin không tự hiển thị lại được, các giao dịch
+  liên quan bị hủy và mọi người được thông báo) hoặc **khóa tài khoản**. Xử lý một báo cáo sẽ đóng luôn các báo cáo trùng.
+- **Khóa tài khoản có hiệu lực ngay**: access token còn hạn cũng bị từ chối (kiểm tra trạng thái tài khoản mỗi request,
+  cache 60 giây và xóa cache khi khóa), refresh token bị thu hồi, WebSocket không kết nối được.
+- Mọi thao tác kiểm duyệt / quản trị được ghi vào **nhật ký (audit log)**.
+- Tài khoản ADMIN đầu tiên được cấp trực tiếp trong CSDL:
+  `INSERT INTO user_roles (user_id, role_id) SELECT <id>, id FROM roles WHERE name = 'ROLE_ADMIN';`
 
 ### 💬 Nhắn tin thời gian thực (WebSocket)
 - Lệnh (mở cuộc trò chuyện, gửi tin) đi qua **REST** để dùng chung validate, rate limit, phân quyền.

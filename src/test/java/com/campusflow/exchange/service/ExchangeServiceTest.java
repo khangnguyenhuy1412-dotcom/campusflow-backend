@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.campusflow.block.service.BlockService;
 import com.campusflow.category.entity.Category;
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.exchange.dto.CreateExchangeRequest;
@@ -54,6 +55,8 @@ class ExchangeServiceTest {
     private ApplicationEventPublisher events;
     @Mock
     private EntityManager entityManager;
+    @Mock
+    private BlockService blockService;
     @InjectMocks
     private ExchangeService service;
 

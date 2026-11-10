@@ -1,5 +1,7 @@
 package com.campusflow.category.service;
 
+import com.campusflow.audit.entity.AuditAction;
+import com.campusflow.audit.service.AuditService;
 import com.campusflow.category.dto.CategoryRequest;
 import com.campusflow.category.dto.CategoryResponse;
 import com.campusflow.category.entity.Category;
@@ -18,6 +20,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ItemRepository itemRepository;
+    private final AuditService auditService;
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> findAll() {
@@ -30,7 +33,7 @@ public class CategoryService {
     }
 
     @Transactional
-    public CategoryResponse create(CategoryRequest request) {
+    public CategoryResponse create(Long adminId, CategoryRequest request) {
         if (categoryRepository.existsByNameIgnoreCase(request.name().trim())
                 || categoryRepository.existsBySlug(request.slug())) {
             throw ApiException.conflict("A category with this name or slug already exists");
@@ -41,11 +44,12 @@ public class CategoryService {
                 .description(request.description())
                 .iconUrl(request.iconUrl())
                 .build());
+        auditService.record(adminId, AuditAction.CATEGORY_CREATED, "CATEGORY", category.getId(), category.getName());
         return CategoryResponse.from(category);
     }
 
     @Transactional
-    public CategoryResponse update(Long id, CategoryRequest request) {
+    public CategoryResponse update(Long adminId, Long id, CategoryRequest request) {
         Category category = getEntity(id);
         if (categoryRepository.existsByNameIgnoreCaseAndIdNot(request.name().trim(), id)
                 || categoryRepository.existsBySlugAndIdNot(request.slug(), id)) {
@@ -55,15 +59,17 @@ public class CategoryService {
         category.setSlug(request.slug());
         category.setDescription(request.description());
         category.setIconUrl(request.iconUrl());
+        auditService.record(adminId, AuditAction.CATEGORY_UPDATED, "CATEGORY", id, category.getName());
         return CategoryResponse.from(category);
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long adminId, Long id) {
         Category category = getEntity(id);
         if (itemRepository.existsByCategoryId(id)) {
             throw ApiException.conflict("Cannot delete a category that still has items");
         }
         categoryRepository.delete(category);
+        auditService.record(adminId, AuditAction.CATEGORY_DELETED, "CATEGORY", id, category.getName());
     }
 }
