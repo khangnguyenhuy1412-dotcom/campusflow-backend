@@ -16,9 +16,14 @@ import com.campusflow.item.entity.ItemType;
 import com.campusflow.item.repository.ItemRepository;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
@@ -27,8 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The exchange state machine (see {@link ExchangeStatus}). Every transition checks who may do it
- * and from which status; item statuses are updated in the same transaction. Item and request rows
- * are versioned, so two conflicting actions at the same moment cannot both succeed.
+ * and from which status; item statuses are updated in the same transaction. Changes lock the
+ * affected item rows first (see {@link #lock}), and rows are versioned as a second safety net,
+ * so two conflicting actions at the same moment can never both succeed.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,6 +47,7 @@ public class ExchangeService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher events;
+    private final EntityManager entityManager;
 
     @Transactional
     public ExchangeRequestResponse create(Long userId, CreateExchangeRequest request) {
@@ -72,7 +79,7 @@ public class ExchangeService {
     /** Owner accepts: both items are reserved and all other pending requests for the item are rejected. */
     @Transactional
     public ExchangeRequestResponse accept(Long userId, Long requestId) {
-        ExchangeRequest request = loadAsOwner(userId, requestId);
+        ExchangeRequest request = lockAsOwner(userId, requestId);
         requireStatus(request, ExchangeStatus.PENDING);
         Item item = request.getItem();
         Item offeredItem = request.getOfferedItem();
@@ -96,7 +103,7 @@ public class ExchangeService {
 
     @Transactional
     public ExchangeRequestResponse reject(Long userId, Long requestId) {
-        ExchangeRequest request = loadAsOwner(userId, requestId);
+        ExchangeRequest request = lockAsOwner(userId, requestId);
         requireStatus(request, ExchangeStatus.PENDING);
         transition(request, ExchangeStatus.REJECTED, ExchangeEventType.REJECTED, userId);
         return ExchangeRequestResponse.from(request, userId);
@@ -108,7 +115,7 @@ public class ExchangeService {
      */
     @Transactional
     public ExchangeRequestResponse cancel(Long userId, Long requestId) {
-        ExchangeRequest request = loadAsParticipant(userId, requestId);
+        ExchangeRequest request = lock(loadAsParticipant(userId, requestId));
         boolean allowed = request.isRequester(userId)
                 ? request.getStatus().isActive()
                 : request.getStatus() == ExchangeStatus.ACCEPTED;
@@ -128,7 +135,7 @@ public class ExchangeService {
     /** Owner confirms the hand-over. Both items are marked as completed and can be reviewed. */
     @Transactional
     public ExchangeRequestResponse complete(Long userId, Long requestId) {
-        ExchangeRequest request = loadAsOwner(userId, requestId);
+        ExchangeRequest request = lockAsOwner(userId, requestId);
         requireStatus(request, ExchangeStatus.ACCEPTED);
         transition(request, ExchangeStatus.COMPLETED, ExchangeEventType.COMPLETED, userId);
         markTraded(request.getItem());
@@ -227,6 +234,25 @@ public class ExchangeService {
         if (!request.isOwner(userId)) {
             throw ApiException.forbidden("Only the item owner can do this");
         }
+        return request;
+    }
+
+    private ExchangeRequest lockAsOwner(Long userId, Long requestId) {
+        return lock(loadAsOwner(userId, requestId));
+    }
+
+    /**
+     * Locks the item rows of a request (SELECT ... FOR UPDATE) before changing it, then reloads the
+     * request. Every change to a request goes through here, so actions on the same item run one
+     * after another and see each other's result: no lost updates and no deadlocks. Items are
+     * always locked in id order, so two deals with crossed offers cannot wait on each other.
+     */
+    private ExchangeRequest lock(ExchangeRequest request) {
+        Stream.of(request.getItem(), request.getOfferedItem())
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(Item::getId))
+                .forEach(item -> entityManager.refresh(item, LockModeType.PESSIMISTIC_WRITE));
+        entityManager.refresh(request);
         return request;
     }
 

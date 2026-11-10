@@ -143,6 +143,15 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
+### 5. Chạy kiểm thử
+```bash
+./mvnw test        # Windows: .\mvnw.cmd test
+```
+- **Unit test**: kiểm tra quy tắc nghiệp vụ từng service (không cần CSDL).
+- **Integration test** (`*IntegrationTest`): chạy toàn bộ ứng dụng với MySQL thật trong Docker (Testcontainers) —
+  cần Docker Desktop đang chạy; nếu không có Docker các test này tự động được bỏ qua.
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`) chạy toàn bộ test cho mỗi push / pull request vào `main`, `develop`.
+
 ---
 
 ## 👥 Đội ngũ phát triển
