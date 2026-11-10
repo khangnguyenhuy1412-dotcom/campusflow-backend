@@ -78,10 +78,17 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | Hình ảnh | `POST /api/items/{id}/images` (multipart, tối đa 5) · `DELETE /{imageId}` · `PUT /{imageId}/primary` | Chủ tin đăng |
 | Trao đổi | `POST /api/exchange-requests` · `GET /sent · /received · /{id}` · `POST /{id}/accept · reject · cancel · complete` | Đã xác thực email |
 | Đánh giá | `POST /api/exchange-requests/{id}/reviews` | Người tham gia giao dịch đã hoàn tất |
-| Người dùng | `GET/PUT /api/users/me` · `POST /me/avatar` · `PUT /me/password` · `GET /me/items` | Đăng nhập |
+| Người dùng | `GET/PUT /api/users/me` · `POST /me/avatar` · `PUT /me/password` · `PUT /me/notification-settings` · `GET /me/items` | Đăng nhập |
 | | `GET /api/users/{id}` · `/{id}/items` · `/{id}/reviews` | Công khai (không có email/SĐT) |
+| Thông báo | `GET /api/notifications` · `GET /unread-count` · `POST /{id}/read` · `POST /read-all` · `DELETE /{id}` | Đăng nhập |
 
 Luồng trao đổi: `PENDING → ACCEPTED → COMPLETED` (hoặc `REJECTED` / `CANCELLED`). Email & SĐT của bên kia chỉ hiện khi yêu cầu đã được chấp nhận.
+
+### 🔔 Thông báo
+Mỗi thay đổi trạng thái giao dịch phát ra một domain event (`ExchangeEvent`, `ReviewCreatedEvent`); `NotificationEventListener`
+tạo thông báo **trong cùng transaction** (hành động bị rollback thì thông báo cũng không tồn tại).
+Các loại quan trọng (yêu cầu mới, được chấp nhận, bị hủy) được gửi thêm email sau khi commit; người dùng có thể tắt email.
+Job dọn dẹp chạy lúc 03:00 mỗi đêm: xóa thông báo đã đọc quá 90 ngày, refresh token và mã xác thực đã hết hạn.
 
 ### 📖 Tài liệu API (Swagger UI)
 Khi chạy cục bộ: **http://localhost:8080/swagger-ui.html** (OpenAPI JSON: `/v3/api-docs`).

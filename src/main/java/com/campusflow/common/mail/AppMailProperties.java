@@ -1,4 +1,4 @@
-package com.campusflow.verification.mail;
+package com.campusflow.common.mail;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

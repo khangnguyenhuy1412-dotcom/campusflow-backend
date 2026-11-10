@@ -7,6 +7,8 @@ import com.campusflow.exchange.dto.CreateExchangeRequest;
 import com.campusflow.exchange.dto.ExchangeRequestResponse;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.entity.ExchangeStatus;
+import com.campusflow.exchange.event.ExchangeEvent;
+import com.campusflow.exchange.event.ExchangeEventType;
 import com.campusflow.exchange.repository.ExchangeRequestRepository;
 import com.campusflow.item.entity.Item;
 import com.campusflow.item.entity.ItemStatus;
@@ -15,8 +17,10 @@ import com.campusflow.item.repository.ItemRepository;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +40,7 @@ public class ExchangeService {
     private final ExchangeRequestRepository exchangeRequestRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher events;
 
     @Transactional
     public ExchangeRequestResponse create(Long userId, CreateExchangeRequest request) {
@@ -60,6 +65,7 @@ public class ExchangeService {
                 .offeredItem(offeredItem)
                 .message(trimToNull(request.message()))
                 .build());
+        events.publishEvent(new ExchangeEvent(saved, ExchangeEventType.REQUESTED, userId));
         return ExchangeRequestResponse.from(saved, userId);
     }
 
@@ -77,14 +83,14 @@ public class ExchangeService {
             throw ApiException.conflict("The offered item is no longer available");
         }
 
-        request.setStatus(ExchangeStatus.ACCEPTED);
         item.setStatus(ItemStatus.IN_TRANSACTION);
         if (offeredItem != null) {
             offeredItem.setStatus(ItemStatus.IN_TRANSACTION);
         }
+        transition(request, ExchangeStatus.ACCEPTED, ExchangeEventType.ACCEPTED, userId);
         exchangeRequestRepository.findByItemIdAndStatus(item.getId(), ExchangeStatus.PENDING).stream()
                 .filter(other -> !other.getId().equals(request.getId()))
-                .forEach(other -> other.setStatus(ExchangeStatus.REJECTED));
+                .forEach(other -> transition(other, ExchangeStatus.REJECTED, ExchangeEventType.AUTO_REJECTED, null));
         return ExchangeRequestResponse.from(request, userId);
     }
 
@@ -92,7 +98,7 @@ public class ExchangeService {
     public ExchangeRequestResponse reject(Long userId, Long requestId) {
         ExchangeRequest request = loadAsOwner(userId, requestId);
         requireStatus(request, ExchangeStatus.PENDING);
-        request.setStatus(ExchangeStatus.REJECTED);
+        transition(request, ExchangeStatus.REJECTED, ExchangeEventType.REJECTED, userId);
         return ExchangeRequestResponse.from(request, userId);
     }
 
@@ -115,7 +121,7 @@ public class ExchangeService {
                 request.getOfferedItem().setStatus(ItemStatus.AVAILABLE);
             }
         }
-        request.setStatus(ExchangeStatus.CANCELLED);
+        transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.CANCELLED, userId);
         return ExchangeRequestResponse.from(request, userId);
     }
 
@@ -124,12 +130,26 @@ public class ExchangeService {
     public ExchangeRequestResponse complete(Long userId, Long requestId) {
         ExchangeRequest request = loadAsOwner(userId, requestId);
         requireStatus(request, ExchangeStatus.ACCEPTED);
-        request.setStatus(ExchangeStatus.COMPLETED);
+        transition(request, ExchangeStatus.COMPLETED, ExchangeEventType.COMPLETED, userId);
         markTraded(request.getItem());
         if (request.getOfferedItem() != null) {
             markTraded(request.getOfferedItem());
         }
         return ExchangeRequestResponse.from(request, userId);
+    }
+
+    /**
+     * Cancels pending requests that offer this item, because it can no longer be given
+     * (it was traded or deleted). The owners of the wanted items are notified.
+     *
+     * @return the cancelled requests
+     */
+    @Transactional
+    public List<ExchangeRequest> cancelOpenOffersOf(Item item) {
+        List<ExchangeRequest> requests =
+                exchangeRequestRepository.findByOfferedItemIdAndStatus(item.getId(), ExchangeStatus.PENDING);
+        requests.forEach(request -> transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.AUTO_CANCELLED, null));
+        return requests;
     }
 
     /** Only the two participants can see a request; for anyone else it does not exist. */
@@ -179,8 +199,14 @@ public class ExchangeService {
     private void markTraded(Item item) {
         item.setStatus(ItemStatus.COMPLETED);
         exchangeRequestRepository.findByItemIdAndStatus(item.getId(), ExchangeStatus.PENDING)
-                .forEach(other -> other.setStatus(ExchangeStatus.REJECTED));
-        exchangeRequestRepository.closePendingOffering(item.getId(), ExchangeStatus.CANCELLED);
+                .forEach(other -> transition(other, ExchangeStatus.REJECTED, ExchangeEventType.AUTO_REJECTED, null));
+        cancelOpenOffersOf(item);
+    }
+
+    /** The only place a request changes status, so every change is announced as an event. */
+    private void transition(ExchangeRequest request, ExchangeStatus status, ExchangeEventType type, Long actorId) {
+        request.setStatus(status);
+        events.publishEvent(new ExchangeEvent(request, type, actorId));
     }
 
     private ExchangeRequest load(Long requestId) {

@@ -2,6 +2,7 @@ package com.campusflow.verification.repository;
 
 import com.campusflow.verification.entity.VerificationCode;
 import com.campusflow.verification.entity.VerificationPurpose;
+import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -14,6 +15,11 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
             Long userId, VerificationPurpose purpose);
 
     Optional<VerificationCode> findFirstByUserIdAndPurposeOrderByIdDesc(Long userId, VerificationPurpose purpose);
+
+    /** Housekeeping: old codes are useless once expired (cooldown only looks at recent ones). */
+    @Modifying
+    @Query("delete from VerificationCode c where c.expiresAt < :cutoff")
+    int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
 
     /** Deletes codes that were never used, so only the newest code is valid. */
     @Modifying

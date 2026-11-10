@@ -9,6 +9,7 @@ import com.campusflow.exchange.repository.ExchangeRequestRepository;
 import com.campusflow.review.dto.ReviewRequest;
 import com.campusflow.review.dto.ReviewResponse;
 import com.campusflow.review.entity.Review;
+import com.campusflow.review.event.ReviewCreatedEvent;
 import com.campusflow.review.repository.RatingStats;
 import com.campusflow.review.repository.ReviewRepository;
 import com.campusflow.user.entity.User;
@@ -16,6 +17,7 @@ import com.campusflow.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ExchangeRequestRepository exchangeRequestRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher events;
 
     /** Each participant of a COMPLETED exchange can review the other participant once. */
     @Transactional
@@ -54,6 +57,7 @@ public class ReviewService {
                 .build());
         reviewRepository.flush();
         updateReputation(reviewee);
+        events.publishEvent(new ReviewCreatedEvent(review));
         return ReviewResponse.from(review);
     }
 

@@ -11,6 +11,7 @@ import com.campusflow.ratelimit.RateLimit;
 import com.campusflow.ratelimit.RateLimitPolicy;
 import com.campusflow.review.dto.ReviewResponse;
 import com.campusflow.review.service.ReviewService;
+import com.campusflow.user.dto.NotificationSettingsRequest;
 import com.campusflow.user.dto.PublicProfileResponse;
 import com.campusflow.user.dto.UpdateProfileRequest;
 import com.campusflow.user.dto.UserResponse;
@@ -72,6 +73,13 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void changePassword(@CurrentUserId Long userId, @Valid @RequestBody ChangePasswordRequest request) {
         passwordService.changePassword(userId, request);
+    }
+
+    @Operation(summary = "Turn notification emails on or off")
+    @PutMapping("/me/notification-settings")
+    public UserResponse updateNotificationSettings(@CurrentUserId Long userId,
+            @Valid @RequestBody NotificationSettingsRequest request) {
+        return userService.updateNotificationSettings(userId, request);
     }
 
     @Operation(summary = "Your listings, any status")
