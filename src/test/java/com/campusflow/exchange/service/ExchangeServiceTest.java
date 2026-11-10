@@ -24,6 +24,7 @@ import com.campusflow.item.entity.ItemType;
 import com.campusflow.item.repository.ItemRepository;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,8 @@ class ExchangeServiceTest {
     private UserRepository userRepository;
     @Mock
     private ApplicationEventPublisher events;
+    @Mock
+    private EntityManager entityManager;
     @InjectMocks
     private ExchangeService service;
 

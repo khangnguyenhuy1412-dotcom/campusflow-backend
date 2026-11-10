@@ -6,6 +6,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -66,6 +67,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleOptimisticLock(OptimisticLockingFailureException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "This data was just changed by someone else. Please reload and try again");
+    }
+
+    /** The database gave up waiting for a lock (e.g. a deadlock); nothing was changed, so retrying is safe. */
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ProblemDetail handleLockFailure(PessimisticLockingFailureException ex) {
+        log.warn("Lock failure: {}", ex.getMostSpecificCause().getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "The server is busy with a conflicting change. Please try again");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
