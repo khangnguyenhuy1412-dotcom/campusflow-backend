@@ -81,6 +81,7 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | Người dùng | `GET/PUT /api/users/me` · `POST /me/avatar` · `PUT /me/password` · `PUT /me/notification-settings` · `GET /me/items` | Đăng nhập |
 | | `GET /api/users/{id}` · `/{id}/items` · `/{id}/reviews` | Công khai (không có email/SĐT) |
 | Thông báo | `GET /api/notifications` · `GET /unread-count` · `POST /{id}/read` · `POST /read-all` · `DELETE /{id}` | Đăng nhập |
+| Nhắn tin | `POST /api/conversations` · `GET /api/conversations` · `/unread-count` · `/{id}` · `GET/POST /{id}/messages` · `POST /{id}/read` | Đăng nhập (gửi: đã xác thực email) |
 
 Luồng trao đổi: `PENDING → ACCEPTED → COMPLETED` (hoặc `REJECTED` / `CANCELLED`). Email & SĐT của bên kia chỉ hiện khi yêu cầu đã được chấp nhận.
 
@@ -89,6 +90,26 @@ Mỗi thay đổi trạng thái giao dịch phát ra một domain event (`Exchan
 tạo thông báo **trong cùng transaction** (hành động bị rollback thì thông báo cũng không tồn tại).
 Các loại quan trọng (yêu cầu mới, được chấp nhận, bị hủy) được gửi thêm email sau khi commit; người dùng có thể tắt email.
 Job dọn dẹp chạy lúc 03:00 mỗi đêm: xóa thông báo đã đọc quá 90 ngày, refresh token và mã xác thực đã hết hạn.
+
+### 💬 Nhắn tin thời gian thực (WebSocket)
+- Lệnh (mở cuộc trò chuyện, gửi tin) đi qua **REST** để dùng chung validate, rate limit, phân quyền.
+- **WebSocket (STOMP)** tại `/ws` chỉ dùng để **đẩy** dữ liệu mới tới client:
+  - `/user/queue/messages` — tin nhắn mới · `/user/queue/notifications` — thông báo mới
+- Gửi JWT trong frame CONNECT: header `Authorization: Bearer <accessToken>`. Chỉ được subscribe vào queue của chính mình;
+  gửi (SEND) qua WebSocket bị từ chối.
+
+```js
+// Ví dụ client (thư viện @stomp/stompjs)
+const client = new Client({
+  brokerURL: 'ws://localhost:8080/ws',
+  connectHeaders: { Authorization: `Bearer ${accessToken}` },
+  onConnect: () => {
+    client.subscribe('/user/queue/messages', m => showMessage(JSON.parse(m.body)));
+    client.subscribe('/user/queue/notifications', m => showNotification(JSON.parse(m.body)));
+  },
+});
+client.activate();
+```
 
 ### 📖 Tài liệu API (Swagger UI)
 Khi chạy cục bộ: **http://localhost:8080/swagger-ui.html** (OpenAPI JSON: `/v3/api-docs`).

@@ -26,6 +26,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/uploads/**",
+            // WebSocket handshake; the JWT is checked on the STOMP CONNECT frame instead
+            "/ws",
+            "/ws/**",
             "/error",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -46,10 +49,11 @@ public class SecurityConfig {
             "/api/users/me/**"
     };
 
-    // Creating or changing listings and exchanges requires a verified student email
+    // Creating or changing listings, exchanges and chats requires a verified student email
     private static final String[] VERIFIED_WRITE_ENDPOINTS = {
             "/api/items/**",
-            "/api/exchange-requests/**"
+            "/api/exchange-requests/**",
+            "/api/conversations/**"
     };
 
     @Bean

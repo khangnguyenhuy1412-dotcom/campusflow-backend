@@ -6,6 +6,7 @@ import com.campusflow.common.exception.ApiException;
 import com.campusflow.notification.dto.NotificationResponse;
 import com.campusflow.notification.dto.UnreadCountResponse;
 import com.campusflow.notification.entity.Notification;
+import com.campusflow.notification.event.NotificationCreatedEvent;
 import com.campusflow.notification.mail.NotificationEmailEvent;
 import com.campusflow.notification.repository.NotificationRepository;
 import com.campusflow.user.entity.User;
@@ -27,8 +28,8 @@ public class NotificationService {
     private final ApplicationEventPublisher events;
 
     /**
-     * Stores the notification in the caller's transaction and, for important types, queues an
-     * email that is sent only after that transaction commits. Users are never notified about
+     * Stores the notification in the caller's transaction; after it commits the notification is
+     * pushed live over WebSocket and, for important types, emailed. Users are never notified about
      * their own actions.
      */
     @Transactional
@@ -37,7 +38,7 @@ public class NotificationService {
         if (draft.actor() != null && draft.actor().getId().equals(recipient.getId())) {
             return;
         }
-        notificationRepository.save(Notification.builder()
+        Notification saved = notificationRepository.save(Notification.builder()
                 .recipient(recipient)
                 .type(draft.type())
                 .title(draft.title())
@@ -46,6 +47,7 @@ public class NotificationService {
                 .item(draft.item())
                 .exchangeRequest(draft.exchangeRequest())
                 .build());
+        events.publishEvent(new NotificationCreatedEvent(recipient.getId(), NotificationResponse.from(saved)));
 
         if (draft.type().isEmailed() && recipient.isEmailNotifications() && recipient.isActive()) {
             events.publishEvent(new NotificationEmailEvent(
