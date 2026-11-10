@@ -3,6 +3,7 @@ package com.campusflow.notification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -10,10 +11,12 @@ import static org.mockito.Mockito.when;
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.notification.entity.Notification;
 import com.campusflow.notification.entity.NotificationType;
+import com.campusflow.notification.event.NotificationCreatedEvent;
 import com.campusflow.notification.mail.NotificationEmailEvent;
 import com.campusflow.notification.repository.NotificationRepository;
 import com.campusflow.user.entity.User;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,15 +38,21 @@ class NotificationServiceTest {
     private final User owner = User.builder().id(1L).email("an@hcmus.edu.vn").fullName("An").build();
     private final User requester = User.builder().id(2L).email("binh@hcmus.edu.vn").fullName("Bình").build();
 
+    @BeforeEach
+    void saveReturnsEntity() {
+        lenient().when(notificationRepository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
     private static NotificationDraft draft(User recipient, User actor, NotificationType type) {
         return new NotificationDraft(recipient, type, "Title", "Message", actor, null, null);
     }
 
     @Test
-    void importantNotificationIsStoredAndEmailed() {
+    void importantNotificationIsStoredPushedAndEmailed() {
         service.create(draft(owner, requester, NotificationType.EXCHANGE_REQUESTED));
 
         verify(notificationRepository).save(any(Notification.class));
+        verify(events).publishEvent(any(NotificationCreatedEvent.class));
         verify(events).publishEvent(new NotificationEmailEvent("an@hcmus.edu.vn", "An", "Title", "Message"));
     }
 
@@ -52,7 +61,8 @@ class NotificationServiceTest {
         service.create(draft(owner, requester, NotificationType.REVIEW_RECEIVED));
 
         verify(notificationRepository).save(any(Notification.class));
-        verify(events, never()).publishEvent(any());
+        verify(events).publishEvent(any(NotificationCreatedEvent.class));
+        verify(events, never()).publishEvent(any(NotificationEmailEvent.class));
     }
 
     @Test
@@ -62,7 +72,7 @@ class NotificationServiceTest {
         service.create(draft(owner, requester, NotificationType.EXCHANGE_ACCEPTED));
 
         verify(notificationRepository).save(any(Notification.class));
-        verify(events, never()).publishEvent(any());
+        verify(events, never()).publishEvent(any(NotificationEmailEvent.class));
     }
 
     @Test
@@ -70,6 +80,7 @@ class NotificationServiceTest {
         service.create(draft(owner, owner, NotificationType.EXCHANGE_REQUESTED));
 
         verify(notificationRepository, never()).save(any());
+        verify(events, never()).publishEvent(any());
     }
 
     @Test

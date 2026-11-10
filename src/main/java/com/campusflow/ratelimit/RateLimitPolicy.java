@@ -31,7 +31,9 @@ public enum RateLimitPolicy {
     /** Image uploads per user. */
     UPLOAD(30, Duration.ofMinutes(10)),
     /** New items, exchange requests and reviews per user (shared budget against spam). */
-    CREATE_CONTENT(30, Duration.ofHours(1));
+    CREATE_CONTENT(30, Duration.ofHours(1)),
+    /** Chat messages and new conversations per user: enough for a real conversation, not for flooding. */
+    CHAT_MESSAGE(30, Duration.ofMinutes(1));
 
     private final long capacity;
     private final Duration period;
