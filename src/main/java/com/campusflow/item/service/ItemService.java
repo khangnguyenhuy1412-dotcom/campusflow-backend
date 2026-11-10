@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ItemService {
 
     /** What other users can see on someone's profile. */
+    private static final Set<ItemStatus> OWNER_ONLY_STATUSES = EnumSet.of(ItemStatus.HIDDEN, ItemStatus.REMOVED);
     private static final Set<ItemStatus> PUBLIC_PROFILE_STATUSES = EnumSet.of(ItemStatus.AVAILABLE, ItemStatus.IN_TRANSACTION);
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
 
@@ -56,11 +57,11 @@ public class ItemService {
                 ItemSummaryResponse::from);
     }
 
-    /** Hidden items are only visible to their owner; for everyone else they do not exist. */
+    /** Hidden and removed items are only visible to their owner; for everyone else they do not exist. */
     @Transactional(readOnly = true)
     public ItemDetailResponse getDetail(Long itemId, Long currentUserId) {
         Item item = itemRepository.findWithDetailsById(itemId)
-                .filter(found -> found.getStatus() != ItemStatus.HIDDEN || found.isOwnedBy(currentUserId))
+                .filter(found -> !OWNER_ONLY_STATUSES.contains(found.getStatus()) || found.isOwnedBy(currentUserId))
                 .orElseThrow(ItemService::itemNotFound);
         return ItemDetailResponse.from(item);
     }

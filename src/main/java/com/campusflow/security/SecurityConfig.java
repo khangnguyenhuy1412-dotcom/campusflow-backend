@@ -14,6 +14,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -53,13 +54,15 @@ public class SecurityConfig {
     private static final String[] VERIFIED_WRITE_ENDPOINTS = {
             "/api/items/**",
             "/api/exchange-requests/**",
-            "/api/conversations/**"
+            "/api/conversations/**",
+            "/api/reports/**"
     };
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
-            SecurityErrorHandler securityErrorHandler) throws Exception {
+            SecurityErrorHandler securityErrorHandler,
+            AccountStatusService accountStatusService) throws Exception {
         http
                 // Tokens travel in the Authorization header, not cookies, so CSRF does not apply
                 .csrf(AbstractHttpConfigurer::disable)
@@ -70,6 +73,7 @@ public class SecurityConfig {
                         .requestMatchers(OWN_ACCOUNT_ENDPOINTS).authenticated()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/moderation/**").hasAnyRole("MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
                         .requestMatchers(HttpMethod.PUT, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
                         .requestMatchers(HttpMethod.PATCH, VERIFIED_WRITE_ENDPOINTS).hasAuthority(JwtService.AUTHORITY_EMAIL_VERIFIED)
@@ -81,7 +85,10 @@ public class SecurityConfig {
                         .accessDeniedHandler(securityErrorHandler))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(securityErrorHandler)
-                        .accessDeniedHandler(securityErrorHandler));
+                        .accessDeniedHandler(securityErrorHandler))
+                // Valid token but banned account: refuse immediately instead of waiting for token expiry
+                .addFilterAfter(new ActiveAccountFilter(accountStatusService, securityErrorHandler),
+                        BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

@@ -26,6 +26,7 @@ import com.campusflow.user.controller.UserController;
 import com.campusflow.user.dto.UserResponse;
 import com.campusflow.user.service.UserService;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -75,6 +76,23 @@ class SecurityConfigTest {
 
     @MockitoBean
     private ReviewService reviewService;
+
+    @MockitoBean
+    private AccountStatusService accountStatusService;
+
+    @BeforeEach
+    void accountsAreActiveByDefault() {
+        when(accountStatusService.isActive(any())).thenReturn(true);
+    }
+
+    @Test
+    void bannedAccountIsRejectedEvenWithValidToken() throws Exception {
+        when(accountStatusService.isActive(1L)).thenReturn(false);
+
+        mockMvc.perform(get("/api/users/me").header("Authorization", bearer("ROLE_STUDENT")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Account is disabled"));
+    }
 
     @Test
     void tooManyRequestsReturns429WithRetryAfter() throws Exception {

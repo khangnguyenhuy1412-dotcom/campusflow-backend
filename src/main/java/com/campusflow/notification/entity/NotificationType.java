@@ -7,7 +7,11 @@ public enum NotificationType {
     /** Emailed: the other person may be on the way to a meeting. */
     EXCHANGE_CANCELLED(true),
     EXCHANGE_COMPLETED(false),
-    REVIEW_RECEIVED(false);
+    REVIEW_RECEIVED(false),
+    /** Tells a reporter that their report was handled. */
+    REPORT_RESOLVED(false),
+    /** Tells an owner that a moderator removed their listing. */
+    ITEM_REMOVED(true);
 
     private final boolean emailed;
 

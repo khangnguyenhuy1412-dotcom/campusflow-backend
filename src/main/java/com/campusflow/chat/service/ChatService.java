@@ -1,5 +1,6 @@
 package com.campusflow.chat.service;
 
+import com.campusflow.block.service.BlockService;
 import com.campusflow.chat.dto.ChatUnreadResponse;
 import com.campusflow.chat.dto.ConversationResponse;
 import com.campusflow.chat.dto.MessageResponse;
@@ -50,6 +51,7 @@ public class ChatService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher events;
+    private final BlockService blockService;
 
     /** Opens the buyer's conversation about an item, creating it on first contact. */
     @Transactional
@@ -60,6 +62,7 @@ public class ChatService {
         if (item.isOwnedBy(userId)) {
             throw ApiException.badRequest("You cannot start a chat about your own item");
         }
+        blockService.requireNoBlock(userId, item.getOwner().getId());
         Conversation conversation = conversationRepository.findByItemIdAndBuyerId(itemId, userId)
                 .orElseGet(() -> conversationRepository.save(Conversation.builder()
                         .item(item)
@@ -99,6 +102,7 @@ public class ChatService {
     @Transactional
     public MessageResponse send(Long userId, Long conversationId, String content) {
         Conversation conversation = loadAsParticipant(userId, conversationId);
+        blockService.requireNoBlock(userId, conversation.counterpartOf(userId).getId());
         User sender = userRepository.getReferenceById(userId);
         String text = content.strip();
         if (text.isEmpty()) {
