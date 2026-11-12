@@ -14,6 +14,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  * <ul>
  *   <li>{@code /user/queue/messages} - new chat messages</li>
  *   <li>{@code /user/queue/notifications} - new notifications</li>
+ *   <li>{@code /user/queue/support} - support ticket messages (user and moderation team)</li>
  * </ul>
  * Clients send the JWT in the STOMP CONNECT frame ({@code Authorization: Bearer ...}); see
  * {@link StompAuthChannelInterceptor}. Commands (sending a message, ...) use the REST API.
@@ -30,6 +31,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public static final String USER_QUEUE_PREFIX = "/user/queue/";
     public static final String MESSAGES_QUEUE = "/queue/messages";
     public static final String NOTIFICATIONS_QUEUE = "/queue/notifications";
+    public static final String SUPPORT_QUEUE = "/queue/support";
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     private final CorsProperties corsProperties;

@@ -85,6 +85,9 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | Trường đại học | `GET /api/universities` · `POST/PUT/DELETE /api/admin/universities` | Công khai · ADMIN |
 | Cần tìm | `GET /api/wanted-posts` · `/{id}` · `POST /api/wanted-posts` · `PUT /{id}` · `POST /{id}/close` · `GET /{id}/matches` · `GET /api/users/me/wanted-posts` | Công khai (ghi: đã xác thực email) |
 | Giao nhận QR | `POST /api/exchange-requests/{id}/handover-code` (người cho) · `POST /{id}/confirm-handover` (người nhận) | Người tham gia giao dịch |
+| Đánh giá | `POST /api/exchange-requests/{id}/reviews` · `PUT /api/reviews/{id}/reply` (người bị đánh giá trả lời, 1 lần) | Người tham gia giao dịch |
+| Hỗ trợ (ticket) | `POST/GET /api/support/tickets` · `/{id}` · `GET/POST /{id}/messages` · `POST /{id}/read · close` | Đăng nhập |
+| Hỗ trợ (ban quản trị) | `GET/POST /api/moderation/support-tickets` · `/{id}/messages` · `POST /{id}/read · close` · `POST /api/moderation/reviews/{id}/hide · restore` | MODERATOR, ADMIN |
 | Báo cáo & chặn | `POST /api/reports` · `POST/DELETE /api/blocks/{userId}` · `GET /api/blocks` | Đăng nhập (báo cáo: đã xác thực email) |
 | Kiểm duyệt | `GET /api/moderation/reports` · `POST /reports/{id}/resolve · dismiss` · `POST /items/{id}/remove · restore` · `POST /users/{id}/ban` | MODERATOR, ADMIN |
 | Quản trị | `GET /api/admin/stats` · `GET /api/admin/users` · `POST /users/{id}/ban · unban` · `PUT /users/{id}/moderator` · `GET /audit-logs` | ADMIN |
@@ -114,6 +117,13 @@ Job dọn dẹp chạy lúc 03:00 mỗi đêm: xóa thông báo đã đọc quá
   liên quan bị hủy và mọi người được thông báo) hoặc **khóa tài khoản**. Xử lý một báo cáo sẽ đóng luôn các báo cáo trùng.
 - **Khóa tài khoản có hiệu lực ngay**: access token còn hạn cũng bị từ chối (kiểm tra trạng thái tài khoản mỗi request,
   cache 60 giây và xóa cache khi khóa), refresh token bị thu hồi, WebSocket không kết nối được.
+- **Tranh chấp đánh giá**: người bị đánh giá **trả lời công khai** một lần; ai cũng có thể **báo cáo đánh giá** sai sự thật
+  (`targetType=REVIEW`). Kiểm duyệt viên có thể **ẩn đánh giá** (`HIDE_REVIEW`) — đánh giá bị ẩn không hiển thị và
+  **không tính vào điểm uy tín** (điểm được tính lại), có thể khôi phục.
+- **Ticket hỗ trợ**: người dùng trao đổi với ban quản trị (tối đa 3 ticket mở); ban quản trị cũng có thể **chủ động mở ticket**
+  với một người dùng để làm rõ (vd. hỏi cả hai bên của một đánh giá bị báo cáo). Người dùng chỉ thấy tên
+  "Ban quản trị CampusFlow", không lộ danh tính kiểm duyệt viên. Tin nhắn đẩy realtime qua `/user/queue/support`,
+  người dùng nhận thông báo + email khi ban quản trị trả lời.
 - Mọi thao tác kiểm duyệt / quản trị được ghi vào **nhật ký (audit log)**.
 - Tài khoản ADMIN đầu tiên được cấp trực tiếp trong CSDL:
   `INSERT INTO user_roles (user_id, role_id) SELECT <id>, id FROM roles WHERE name = 'ROLE_ADMIN';`

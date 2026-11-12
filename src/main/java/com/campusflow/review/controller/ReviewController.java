@@ -3,6 +3,7 @@ package com.campusflow.review.controller;
 import com.campusflow.common.web.CurrentUserId;
 import com.campusflow.ratelimit.RateLimit;
 import com.campusflow.ratelimit.RateLimitPolicy;
+import com.campusflow.review.dto.ReviewReplyRequest;
 import com.campusflow.review.dto.ReviewRequest;
 import com.campusflow.review.dto.ReviewResponse;
 import com.campusflow.review.service.ReviewService;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,5 +34,13 @@ public class ReviewController {
     public ReviewResponse create(@CurrentUserId Long userId, @PathVariable Long id,
             @Valid @RequestBody ReviewRequest request) {
         return reviewService.create(userId, id, request);
+    }
+
+    @Operation(summary = "Reply publicly to a review you received (once)")
+    @RateLimit(policy = RateLimitPolicy.CREATE_CONTENT, key = RateLimit.Key.USER)
+    @PutMapping("/api/reviews/{id}/reply")
+    public ReviewResponse reply(@CurrentUserId Long userId, @PathVariable Long id,
+            @Valid @RequestBody ReviewReplyRequest request) {
+        return reviewService.reply(userId, id, request.reply());
     }
 }

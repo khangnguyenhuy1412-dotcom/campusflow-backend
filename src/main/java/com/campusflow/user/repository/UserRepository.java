@@ -1,6 +1,8 @@
 package com.campusflow.user.repository;
 
 import com.campusflow.user.entity.User;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +15,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /** Active users holding any of the given roles, e.g. the moderation team to push support messages to. */
+    @Query("select distinct u.id from User u join u.roles r where r.name in :roleNames and u.active = true")
+    List<Long> findActiveIdsWithAnyRole(@Param("roleNames") Collection<String> roleNames);
 
     /**
      * Admin user search by email or name. {@code pattern} comes from SqlLike.contains (wildcards

@@ -60,7 +60,8 @@ public class SecurityConfig {
             "/api/exchange-requests/**",
             "/api/conversations/**",
             "/api/reports/**",
-            "/api/wanted-posts/**"
+            "/api/wanted-posts/**",
+            "/api/reviews/**"
     };
 
     @Bean

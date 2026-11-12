@@ -18,6 +18,10 @@ import com.campusflow.moderation.entity.ReportTargetType;
 import com.campusflow.moderation.event.ItemRemovedEvent;
 import com.campusflow.moderation.event.ReportHandledEvent;
 import com.campusflow.moderation.repository.ReportRepository;
+import com.campusflow.review.entity.Review;
+import com.campusflow.review.event.ReviewHiddenEvent;
+import com.campusflow.review.repository.ReviewRepository;
+import com.campusflow.review.service.ReviewService;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
 import java.util.ArrayList;
@@ -43,6 +47,8 @@ public class ModerationService {
     private final AccountBanService accountBanService;
     private final AuditService auditService;
     private final ApplicationEventPublisher events;
+    private final ReviewRepository reviewRepository;
+    private final ReviewService reviewService;
 
     @Transactional(readOnly = true)
     public PageResponse<ReportDetailResponse> queue(ReportStatus status, Integer page, Integer size) {
@@ -75,12 +81,19 @@ public class ModerationService {
                 removeItem(moderatorId, report.getTargetItem().getId(), request.note());
             }
             case BAN_USER -> accountBanService.ban(moderatorId, report.getTargetUser().getId(), request.note());
+            case HIDE_REVIEW -> {
+                if (report.getTargetType() != ReportTargetType.REVIEW) {
+                    throw ApiException.badRequest("HIDE_REVIEW is only possible for reports about a review");
+                }
+                hideReview(moderatorId, report.getTargetReview().getId(), request.note());
+            }
         }
 
         List<Report> closed = new ArrayList<>();
         closed.add(report);
         closed.addAll(reportRepository.findOpenForSameTarget(report.getId(),
                 report.getTargetItem() == null ? null : report.getTargetItem().getId(),
+                report.getTargetReview() == null ? null : report.getTargetReview().getId(),
                 report.getTargetUser().getId()));
         User moderator = userRepository.getReferenceById(moderatorId);
         for (Report each : closed) {
@@ -124,6 +137,37 @@ public class ModerationService {
         }
         item.setStatus(ItemStatus.HIDDEN);
         auditService.record(moderatorId, AuditAction.ITEM_RESTORED, "ITEM", item.getId(), null);
+    }
+
+    /**
+     * Hides a review (e.g. it is false or abusive): it disappears from the profile and the reviewed
+     * person's reputation is recalculated without it. The author is told why.
+     */
+    @Transactional
+    public void hideReview(Long moderatorId, Long reviewId, String reason) {
+        Review review = reviewRepository.findWithDetailsById(reviewId)
+                .orElseThrow(() -> ApiException.notFound("Review not found"));
+        if (review.isHidden()) {
+            return;
+        }
+        review.setHidden(true);
+        reviewRepository.flush();
+        reviewService.recalculateReputation(review.getReviewee());
+        events.publishEvent(new ReviewHiddenEvent(review, reason));
+        auditService.record(moderatorId, AuditAction.REVIEW_HIDDEN, "REVIEW", review.getId(), reason);
+    }
+
+    @Transactional
+    public void restoreReview(Long moderatorId, Long reviewId) {
+        Review review = reviewRepository.findWithDetailsById(reviewId)
+                .orElseThrow(() -> ApiException.notFound("Review not found"));
+        if (!review.isHidden()) {
+            throw ApiException.conflict("Only hidden reviews can be restored");
+        }
+        review.setHidden(false);
+        reviewRepository.flush();
+        reviewService.recalculateReputation(review.getReviewee());
+        auditService.record(moderatorId, AuditAction.REVIEW_RESTORED, "REVIEW", review.getId(), null);
     }
 
     private Report getReport(Long reportId) {

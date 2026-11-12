@@ -46,6 +46,7 @@ public class NotificationService {
                 .actor(draft.actor())
                 .item(draft.item())
                 .exchangeRequest(draft.exchangeRequest())
+                .supportTicket(draft.supportTicket())
                 .build());
         events.publishEvent(new NotificationCreatedEvent(recipient.getId(), NotificationResponse.from(saved)));
 

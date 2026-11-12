@@ -51,6 +51,18 @@ public class Review {
     @Column(length = 1000)
     private String comment;
 
+    /** The reviewed person's public answer, e.g. their side of the story after a 1-star review. */
+    @Column(length = 1000)
+    private String reply;
+
+    @Column(name = "replied_at")
+    private Instant repliedAt;
+
+    /** Hidden by a moderator (e.g. a false review): not shown and not counted in the reputation score. */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean hidden = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

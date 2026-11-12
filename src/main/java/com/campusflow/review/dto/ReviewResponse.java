@@ -11,6 +11,8 @@ public record ReviewResponse(
         UserSummaryResponse reviewer,
         Long exchangeRequestId,
         String itemTitle,
+        String reply,
+        Instant repliedAt,
         Instant createdAt) {
 
     public static ReviewResponse from(Review review) {
@@ -21,6 +23,8 @@ public record ReviewResponse(
                 UserSummaryResponse.from(review.getReviewer()),
                 review.getExchangeRequest().getId(),
                 review.getExchangeRequest().getItem().getTitle(),
+                review.getReply(),
+                review.getRepliedAt(),
                 review.getCreatedAt());
     }
 }
