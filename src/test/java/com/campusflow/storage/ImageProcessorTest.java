@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -63,13 +64,37 @@ class ImageProcessorTest {
 
         assertThatThrownBy(() -> processor.process(fake, 1600, 400))
                 .isInstanceOf(ApiException.class)
-                .hasMessageContaining("JPEG or PNG");
+                .hasMessageContaining("JPEG, PNG or WebP");
     }
 
     @Test
     void unsupportedFormatIsRejected() throws IOException {
         assertThatThrownBy(() -> processor.process(image("gif", 10, 10, "a.gif", "image/gif"), 1600, 400))
-                .hasMessageContaining("JPEG or PNG");
+                .hasMessageContaining("JPEG, PNG or WebP");
+    }
+
+    @Test
+    void webpIsAcceptedAndStoredAsJpeg() throws IOException {
+        // 1x1 lossy WebP (the sample commonly used for WebP feature detection)
+        byte[] webp = Base64.getDecoder().decode("UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA");
+        MockMultipartFile file = new MockMultipartFile("files", "photo.webp", "image/webp", webp);
+
+        ProcessedImageSet result = processor.process(file, 1600, 400);
+
+        assertThat(result.full().extension()).isEqualTo("jpg");
+        assertThat(read(result.full().content()).getWidth()).isEqualTo(1);
+    }
+
+    @Test
+    void heicIsRecognisedAndRejectedWithAHelpfulMessage() {
+        // ISO-BMFF header: box size, "ftyp", brand "heic"
+        byte[] heic = new byte[64];
+        System.arraycopy(new byte[] {0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'h', 'e', 'i', 'c'}, 0, heic, 0, 12);
+        MockMultipartFile file = new MockMultipartFile("files", "IMG_0001.HEIC", "image/heic", heic);
+
+        assertThatThrownBy(() -> processor.process(file, 1600, 400))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("HEIC photos are not supported");
     }
 
     @Test
