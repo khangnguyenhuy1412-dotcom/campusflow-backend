@@ -39,6 +39,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/api/items/**",
             "/api/categories/**",
+            "/api/universities",
+            "/api/wanted-posts",
+            "/api/wanted-posts/*",
             "/api/users/*",
             "/api/users/*/items",
             "/api/users/*/reviews"
@@ -55,7 +58,8 @@ public class SecurityConfig {
             "/api/items/**",
             "/api/exchange-requests/**",
             "/api/conversations/**",
-            "/api/reports/**"
+            "/api/reports/**",
+            "/api/wanted-posts/**"
     };
 
     @Bean

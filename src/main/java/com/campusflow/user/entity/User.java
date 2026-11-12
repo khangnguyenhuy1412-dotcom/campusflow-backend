@@ -1,5 +1,6 @@
 package com.campusflow.user.entity;
 
+import com.campusflow.university.entity.University;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,8 +49,14 @@ public class User {
     @Column(name = "student_id", length = 20)
     private String studentId;
 
-    @Column(length = 150)
-    private String university;
+    /** University display name, copied from {@link #university} (kept for fast reads and old rows). */
+    @Column(name = "university", length = 150)
+    private String universityName;
+
+    /** Detected from the email domain at registration; null when the domain is not known yet. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "university_id")
+    private University university;
 
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;

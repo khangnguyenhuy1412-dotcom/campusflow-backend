@@ -9,6 +9,7 @@ import com.campusflow.moderation.entity.ReportTargetType;
 import com.campusflow.notification.entity.NotificationType;
 import com.campusflow.review.entity.Review;
 import com.campusflow.user.entity.User;
+import com.campusflow.wanted.entity.WantedPost;
 
 /**
  * Decides who is notified about an event and writes the (Vietnamese) text.
@@ -64,11 +65,17 @@ public final class NotificationMessages {
                     "Yêu cầu đã bị hủy",
                     itemTitle + " không còn trên CampusFlow nên yêu cầu của bạn đã bị hủy.",
                     null, item, request);
-            case COMPLETED -> new NotificationDraft(requester, NotificationType.EXCHANGE_COMPLETED,
-                    "Giao dịch hoàn tất",
-                    "Giao dịch " + itemTitle + " với " + owner.getFullName()
-                            + " đã hoàn tất. Hãy để lại đánh giá cho họ!",
-                    owner, item, request);
+            case COMPLETED -> {
+                // Either side can complete (owner directly, receiver with the meetup code): tell the other one
+                boolean byRequester = request.isRequester(event.actorId());
+                User actor = byRequester ? requester : owner;
+                User recipient = byRequester ? owner : requester;
+                yield new NotificationDraft(recipient, NotificationType.EXCHANGE_COMPLETED,
+                        "Giao dịch hoàn tất",
+                        "Giao dịch " + itemTitle + " với " + actor.getFullName()
+                                + " đã hoàn tất. Hãy để lại đánh giá cho họ!",
+                        actor, item, request);
+            }
         };
     }
 
@@ -99,6 +106,13 @@ public final class NotificationMessages {
                 "Tin " + quote(item.getTitle()) + " đã bị gỡ",
                 "Kiểm duyệt viên đã gỡ tin của bạn. Lý do: " + truncate(why, 300) + ".",
                 null, item, null);
+    }
+
+    public static NotificationDraft forWantedMatch(WantedPost post, Item item) {
+        return new NotificationDraft(post.getUser(), NotificationType.WANTED_MATCH,
+                "Có món phù hợp với tin “Cần tìm” của bạn",
+                quote(item.getTitle()) + " vừa được đăng, khớp với " + quote(post.getTitle()) + ". Xem ngay kẻo lỡ!",
+                item.getOwner(), item, null);
     }
 
     private static String truncate(String text, int max) {

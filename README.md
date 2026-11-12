@@ -82,6 +82,9 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | | `GET /api/users/{id}` · `/{id}/items` · `/{id}/reviews` | Công khai (không có email/SĐT) |
 | Thông báo | `GET /api/notifications` · `GET /unread-count` · `POST /{id}/read` · `POST /read-all` · `DELETE /{id}` | Đăng nhập |
 | Nhắn tin | `POST /api/conversations` · `GET /api/conversations` · `/unread-count` · `/{id}` · `GET/POST /{id}/messages` · `POST /{id}/read` | Đăng nhập (gửi: đã xác thực email) |
+| Trường đại học | `GET /api/universities` · `POST/PUT/DELETE /api/admin/universities` | Công khai · ADMIN |
+| Cần tìm | `GET /api/wanted-posts` · `/{id}` · `POST /api/wanted-posts` · `PUT /{id}` · `POST /{id}/close` · `GET /{id}/matches` · `GET /api/users/me/wanted-posts` | Công khai (ghi: đã xác thực email) |
+| Giao nhận QR | `POST /api/exchange-requests/{id}/handover-code` (người cho) · `POST /{id}/confirm-handover` (người nhận) | Người tham gia giao dịch |
 | Báo cáo & chặn | `POST /api/reports` · `POST/DELETE /api/blocks/{userId}` · `GET /api/blocks` | Đăng nhập (báo cáo: đã xác thực email) |
 | Kiểm duyệt | `GET /api/moderation/reports` · `POST /reports/{id}/resolve · dismiss` · `POST /items/{id}/remove · restore` · `POST /users/{id}/ban` | MODERATOR, ADMIN |
 | Quản trị | `GET /api/admin/stats` · `GET /api/admin/users` · `POST /users/{id}/ban · unban` · `PUT /users/{id}/moderator` · `GET /audit-logs` | ADMIN |
@@ -93,6 +96,16 @@ Mỗi thay đổi trạng thái giao dịch phát ra một domain event (`Exchan
 tạo thông báo **trong cùng transaction** (hành động bị rollback thì thông báo cũng không tồn tại).
 Các loại quan trọng (yêu cầu mới, được chấp nhận, bị hủy) được gửi thêm email sau khi commit; người dùng có thể tắt email.
 Job dọn dẹp chạy lúc 03:00 mỗi đêm: xóa thông báo đã đọc quá 90 ngày, refresh token và mã xác thực đã hết hạn.
+
+### 🎓 Tính năng dành riêng cho sinh viên
+- **Trường đại học từ email**: khi đăng ký, trường được nhận diện theo tên miền email (khớp hậu tố dài nhất,
+  vd. `student.hcmus.edu.vn` → HCMUS). Lọc tin cùng trường: `GET /api/items?sameUniversity=true` hoặc `?universityId=`.
+  Admin thêm trường mới thì sinh viên đã đăng ký với tên miền đó được gán tự động.
+- **Cần tìm**: đăng món mình cần (từ khóa, danh mục, giá tối đa, chỉ cùng trường). Khi có tin mới phù hợp, người đăng
+  được thông báo (trong app + email), mỗi món chỉ một lần. So khớp không phân biệt dấu ("giai tich" khớp "Giải tích"),
+  theo nguyên từ (số được giữ: "giải tích 2" không khớp "giải tích 1"). Tin tự đóng sau 30 ngày.
+- **Xác nhận giao nhận bằng QR**: sau khi chấp nhận, người cho tạo mã 8 ký tự + ảnh QR (hết hạn 10 phút, chỉ lưu
+  hash, tối đa 5 lần nhập sai). Người nhận quét QR/nhập mã → giao dịch hoàn tất với nhãn **"Đã xác nhận gặp mặt"**.
 
 ### 🛡️ An toàn & kiểm duyệt
 - Người dùng **báo cáo** tin đăng/người dùng (mỗi người chỉ một báo cáo đang mở cho mỗi đối tượng) và **chặn** người khác

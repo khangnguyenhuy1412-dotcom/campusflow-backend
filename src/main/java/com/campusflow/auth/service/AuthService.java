@@ -7,6 +7,8 @@ import com.campusflow.auth.dto.VerifyEmailRequest;
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.security.AppUserPrincipal;
 import com.campusflow.security.JwtService;
+import com.campusflow.university.entity.University;
+import com.campusflow.university.service.UniversityService;
 import com.campusflow.user.dto.UserResponse;
 import com.campusflow.user.entity.Role;
 import com.campusflow.user.entity.User;
@@ -37,6 +39,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final StudentEmailPolicy studentEmailPolicy;
     private final VerificationService verificationService;
+    private final UniversityService universityService;
 
     /** Creates an unverified account and emails a verification code. The user can browse until verified. */
     @Transactional
@@ -52,12 +55,14 @@ public class AuthService {
         Role studentRole = roleRepository.findByName(Role.STUDENT)
                 .orElseThrow(() -> new IllegalStateException(Role.STUDENT + " is missing; check the seed migration"));
 
+        University university = universityService.resolve(email).orElse(null);
         User user = userRepository.save(User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName().trim())
                 .studentId(request.studentId())
-                .university(request.university())
+                .university(university)
+                .universityName(university == null ? null : university.getName())
                 .roles(Set.of(studentRole))
                 .build());
         verificationService.issueEmailVerificationCode(user);

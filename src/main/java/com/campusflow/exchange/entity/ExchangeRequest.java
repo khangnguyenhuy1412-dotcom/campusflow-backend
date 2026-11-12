@@ -58,6 +58,22 @@ public class ExchangeRequest {
     @Column(nullable = false)
     private ExchangeStatus status = ExchangeStatus.PENDING;
 
+    /** SHA-256 of the current meetup code; the code itself is only shown to the giver once. */
+    @Column(name = "handover_code_hash", length = 64)
+    private String handoverCodeHash;
+
+    @Column(name = "handover_code_expires_at")
+    private Instant handoverCodeExpiresAt;
+
+    @Builder.Default
+    @Column(name = "handover_attempts", nullable = false)
+    private int handoverAttempts = 0;
+
+    /** True when the receiver confirmed the hand-over with the giver's code at the meetup. */
+    @Builder.Default
+    @Column(name = "handover_verified", nullable = false)
+    private boolean handoverVerified = false;
+
     /** Optimistic lock: e.g. an accept and a cancel at the same moment cannot both succeed. */
     @Version
     private Long version;

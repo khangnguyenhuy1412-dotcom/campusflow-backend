@@ -91,6 +91,12 @@
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>3.1.1</version>
 		</dependency>
+		<!-- QR code generation for meetup (handover) confirmation -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.5.4</version>
+		</dependency>
 		<!-- Image resizing; applies EXIF orientation and writes clean files without metadata -->
 		<dependency>
 			<groupId>net.coobird</groupId>

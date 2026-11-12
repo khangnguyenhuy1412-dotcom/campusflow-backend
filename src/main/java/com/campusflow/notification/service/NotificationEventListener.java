@@ -4,6 +4,7 @@ import com.campusflow.exchange.event.ExchangeEvent;
 import com.campusflow.moderation.event.ItemRemovedEvent;
 import com.campusflow.moderation.event.ReportHandledEvent;
 import com.campusflow.review.event.ReviewCreatedEvent;
+import com.campusflow.wanted.event.WantedMatchFoundEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -36,5 +37,10 @@ public class NotificationEventListener {
     @EventListener
     public void onItemRemoved(ItemRemovedEvent event) {
         notificationService.create(NotificationMessages.forItemRemoved(event.item(), event.reason()));
+    }
+
+    @EventListener
+    public void onWantedMatch(WantedMatchFoundEvent event) {
+        notificationService.create(NotificationMessages.forWantedMatch(event.post(), event.item()));
     }
 }

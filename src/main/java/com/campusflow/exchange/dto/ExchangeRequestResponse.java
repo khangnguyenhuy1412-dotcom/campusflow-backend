@@ -19,6 +19,7 @@ public record ExchangeRequestResponse(
         UserSummaryResponse requester,
         UserSummaryResponse owner,
         ContactInfo counterpartContact,
+        boolean handoverVerified,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -34,6 +35,7 @@ public record ExchangeRequestResponse(
                 UserSummaryResponse.from(request.getRequester()),
                 UserSummaryResponse.from(request.getOwner()),
                 shareContact ? ContactInfo.from(request.counterpartOf(viewerId)) : null,
+                request.isHandoverVerified(),
                 request.getCreatedAt(),
                 request.getUpdatedAt());
     }

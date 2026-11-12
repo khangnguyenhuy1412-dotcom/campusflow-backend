@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +50,8 @@ class ItemServiceTest {
     private ExchangeService exchangeService;
     @Mock
     private StoredFileCleanup storedFileCleanup;
+    @Mock
+    private ApplicationEventPublisher events;
     @InjectMocks
     private ItemService service;
 

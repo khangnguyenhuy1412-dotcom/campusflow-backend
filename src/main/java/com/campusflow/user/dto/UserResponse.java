@@ -27,7 +27,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getFullName(),
                 user.getStudentId(),
-                user.getUniversity(),
+                user.getUniversityName(),
                 user.getPhoneNumber(),
                 user.getAvatarUrl(),
                 user.getReputationScore(),

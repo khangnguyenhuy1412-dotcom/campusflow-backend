@@ -13,6 +13,7 @@ import com.campusflow.category.entity.Category;
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.exchange.dto.CreateExchangeRequest;
 import com.campusflow.exchange.dto.ExchangeRequestResponse;
+import com.campusflow.exchange.dto.HandoverCodeResponse;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.entity.ExchangeStatus;
 import com.campusflow.exchange.event.ExchangeEvent;
@@ -57,6 +58,8 @@ class ExchangeServiceTest {
     private EntityManager entityManager;
     @Mock
     private BlockService blockService;
+    @Mock
+    private QrCodeGenerator qrCodeGenerator;
     @InjectMocks
     private ExchangeService service;
 
@@ -294,6 +297,47 @@ class ExchangeServiceTest {
         verify(exchangeRequestRepository).findByOfferedItemIdAndStatus(10L, ExchangeStatus.PENDING);
         verify(exchangeRequestRepository).findByOfferedItemIdAndStatus(20L, ExchangeStatus.PENDING);
         verify(events).publishEvent(new ExchangeEvent(request, ExchangeEventType.COMPLETED, OWNER));
+    }
+
+    @Test
+    void handoverCodeCompletesDealAsVerified() {
+        Item wanted = item(10L, owner, ItemType.GIVEAWAY, ItemStatus.IN_TRANSACTION);
+        ExchangeRequest request = request(100L, wanted, null, ExchangeStatus.ACCEPTED);
+        when(qrCodeGenerator.toPngDataUrl(any())).thenReturn("data:image/png;base64,x");
+
+        HandoverCodeResponse issued = service.issueHandoverCode(OWNER, 100L);
+        assertThat(issued.code()).matches("[A-HJ-NP-Z2-9]{8}");
+        assertThat(request.getHandoverCodeHash()).as("only the hash is stored").isNotEqualTo(issued.code());
+
+        service.confirmHandover(REQUESTER, 100L, issued.code().toLowerCase());
+
+        assertThat(request.getStatus()).isEqualTo(ExchangeStatus.COMPLETED);
+        assertThat(request.isHandoverVerified()).isTrue();
+        assertThat(wanted.getStatus()).isEqualTo(ItemStatus.COMPLETED);
+        verify(events).publishEvent(new ExchangeEvent(request, ExchangeEventType.COMPLETED, REQUESTER));
+    }
+
+    @Test
+    void wrongHandoverCodesAreLimited() {
+        ExchangeRequest request = request(100L, item(10L, owner, ItemType.GIVEAWAY, ItemStatus.IN_TRANSACTION), null,
+                ExchangeStatus.ACCEPTED);
+        when(qrCodeGenerator.toPngDataUrl(any())).thenReturn("data:image/png;base64,x");
+        String code = service.issueHandoverCode(OWNER, 100L).code();
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> service.confirmHandover(REQUESTER, 100L, "WRONGCOD")).hasMessageContaining("Wrong code");
+        }
+        // Even the right code is refused after 5 wrong attempts, until the giver shows a new one
+        assertThatThrownBy(() -> service.confirmHandover(REQUESTER, 100L, code)).hasMessageContaining("expired");
+        assertThat(request.getStatus()).isEqualTo(ExchangeStatus.ACCEPTED);
+    }
+
+    @Test
+    void onlyTheReceiverConfirmsTheHandover() {
+        request(100L, item(10L, owner, ItemType.GIVEAWAY, ItemStatus.IN_TRANSACTION), null, ExchangeStatus.ACCEPTED);
+
+        assertThatThrownBy(() -> service.confirmHandover(OWNER, 100L, "ABCDEFGH"))
+                .satisfies(e -> assertThat(statusOf(e)).isEqualTo(HttpStatus.FORBIDDEN));
     }
 
     @Test
