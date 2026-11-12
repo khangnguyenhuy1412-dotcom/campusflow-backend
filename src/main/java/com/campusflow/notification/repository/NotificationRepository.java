@@ -13,10 +13,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    @EntityGraph(attributePaths = {"actor", "item", "exchangeRequest"})
+    @EntityGraph(attributePaths = {"actor", "item", "exchangeRequest", "supportTicket"})
     Page<Notification> findByRecipientId(Long recipientId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"actor", "item", "exchangeRequest"})
+    @EntityGraph(attributePaths = {"actor", "item", "exchangeRequest", "supportTicket"})
     Page<Notification> findByRecipientIdAndReadAtIsNull(Long recipientId, Pageable pageable);
 
     /** Looks a notification up only among the user's own, so nobody can touch someone else's. */

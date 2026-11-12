@@ -2,6 +2,7 @@ package com.campusflow.notification.entity;
 
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.item.entity.Item;
+import com.campusflow.support.entity.SupportTicket;
 import com.campusflow.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -65,6 +66,10 @@ public class Notification {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exchange_request_id")
     private ExchangeRequest exchangeRequest;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "support_ticket_id")
+    private SupportTicket supportTicket;
 
     @Column(name = "read_at")
     private Instant readAt;

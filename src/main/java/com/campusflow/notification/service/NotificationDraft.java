@@ -3,6 +3,7 @@ package com.campusflow.notification.service;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.item.entity.Item;
 import com.campusflow.notification.entity.NotificationType;
+import com.campusflow.support.entity.SupportTicket;
 import com.campusflow.user.entity.User;
 
 /** Everything needed to create one notification; built by {@link NotificationMessages}. */
@@ -13,5 +14,12 @@ public record NotificationDraft(
         String message,
         User actor,
         Item item,
-        ExchangeRequest exchangeRequest) {
+        ExchangeRequest exchangeRequest,
+        SupportTicket supportTicket) {
+
+    /** Most notifications are not about a support ticket. */
+    public NotificationDraft(User recipient, NotificationType type, String title, String message, User actor,
+            Item item, ExchangeRequest exchangeRequest) {
+        this(recipient, type, title, message, actor, item, exchangeRequest, null);
+    }
 }

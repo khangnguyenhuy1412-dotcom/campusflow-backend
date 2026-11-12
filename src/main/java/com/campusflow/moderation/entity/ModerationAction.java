@@ -4,5 +4,6 @@ package com.campusflow.moderation.entity;
 public enum ModerationAction {
     NONE,
     REMOVE_ITEM,
-    BAN_USER
+    BAN_USER,
+    HIDE_REVIEW
 }

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.campusflow.support.IntegrationTest;
+import com.campusflow.user.entity.Role;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -184,6 +185,30 @@ class ChatIntegrationTest extends IntegrationTest {
         JsonNode pushed = notifications.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertThat(pushed).isNotNull();
         assertThat(pushed.path("type").asString()).isEqualTo("EXCHANGE_REQUESTED");
+    }
+
+    @Test
+    void supportMessagesArePushedToTheUserAnonymouslyAndToStaffWithSender() throws Exception {
+        TestUser user = registerVerifiedUser("Student");
+        TestUser moderator = withRole(registerVerifiedUser("Mod"), Role.MODERATOR);
+        BlockingQueue<JsonNode> userInbox = subscribe(user, "/user/queue/support");
+        BlockingQueue<JsonNode> staffInbox = subscribe(moderator, "/user/queue/support");
+
+        long ticketId = read(mockMvc.perform(as(user, withJson(post("/api/support/tickets"),
+                Map.of("subject", "Cần hỗ trợ", "message", "Xin chào ban quản trị"))))).path("id").asLong();
+        JsonNode toStaff = staffInbox.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertThat(toStaff).isNotNull();
+        assertThat(toStaff.path("senderName").asString()).isEqualTo("Student");
+
+        mockMvc.perform(as(moderator, withJson(post("/api/moderation/support-tickets/{id}/messages", ticketId),
+                Map.of("content", "Chào bạn, mình hỗ trợ ngay")))).andExpect(status().isCreated());
+        JsonNode toUser = null;
+        for (int i = 0; i < 2 && (toUser == null || !toUser.path("fromStaff").asBoolean()); i++) {
+            toUser = userInbox.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        }
+        assertThat(toUser).isNotNull();
+        assertThat(toUser.path("senderName").asString()).isEqualTo("Ban quản trị CampusFlow");
+        assertThat(toUser.path("senderId").isNull()).as("moderator identity is not revealed").isTrue();
     }
 
     @Test

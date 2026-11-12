@@ -14,11 +14,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
 
-    @EntityGraph(attributePaths = {"reporter", "targetItem", "targetUser", "handledBy"})
+    @EntityGraph(attributePaths = {"reporter", "targetItem", "targetReview", "targetUser", "handledBy"})
     Optional<Report> findWithDetailsById(Long id);
 
     /** Moderation queue; a null status means all statuses. */
-    @EntityGraph(attributePaths = {"reporter", "targetItem", "targetUser", "handledBy"})
+    @EntityGraph(attributePaths = {"reporter", "targetItem", "targetReview", "targetUser", "handledBy"})
     @Query("select r from Report r where (:status is null or r.status = :status)")
     Page<Report> findQueue(@Param("status") ReportStatus status, Pageable pageable);
 
@@ -27,24 +27,28 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
      * r.targetItem.id would be an inner join and silently drop user reports, which have no item.)
      */
     @Query("""
-            select count(r) > 0 from Report r left join r.targetItem i
+            select count(r) > 0 from Report r left join r.targetItem i left join r.targetReview rv
             where r.reporter.id = :reporterId and r.status = com.campusflow.moderation.entity.ReportStatus.OPEN
               and r.targetType = :targetType
-              and ((:itemId is not null and i.id = :itemId) or (:itemId is null and r.targetUser.id = :userId))
+              and ((:itemId is not null and i.id = :itemId)
+                   or (:reviewId is not null and rv.id = :reviewId)
+                   or (:itemId is null and :reviewId is null and r.targetUser.id = :userId))
             """)
     boolean existsOpenDuplicate(@Param("reporterId") Long reporterId, @Param("targetType") ReportTargetType targetType,
-            @Param("itemId") Long itemId, @Param("userId") Long userId);
+            @Param("itemId") Long itemId, @Param("reviewId") Long reviewId, @Param("userId") Long userId);
 
     /** Other open reports about the same thing, closed together when a moderator acts. */
     @Query("""
-            select r from Report r left join r.targetItem i
+            select r from Report r left join r.targetItem i left join r.targetReview rv
             where r.status = com.campusflow.moderation.entity.ReportStatus.OPEN and r.id <> :excludeId
               and ((:itemId is not null and i.id = :itemId)
-                   or (:itemId is null and r.targetType = com.campusflow.moderation.entity.ReportTargetType.USER
+                   or (:reviewId is not null and rv.id = :reviewId)
+                   or (:itemId is null and :reviewId is null
+                       and r.targetType = com.campusflow.moderation.entity.ReportTargetType.USER
                        and r.targetUser.id = :userId))
             """)
     List<Report> findOpenForSameTarget(@Param("excludeId") Long excludeId, @Param("itemId") Long itemId,
-            @Param("userId") Long userId);
+            @Param("reviewId") Long reviewId, @Param("userId") Long userId);
 
     long countByStatus(ReportStatus status);
 }

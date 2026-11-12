@@ -10,12 +10,14 @@ import com.campusflow.review.dto.ReviewRequest;
 import com.campusflow.review.dto.ReviewResponse;
 import com.campusflow.review.entity.Review;
 import com.campusflow.review.event.ReviewCreatedEvent;
+import com.campusflow.review.event.ReviewRepliedEvent;
 import com.campusflow.review.repository.RatingStats;
 import com.campusflow.review.repository.ReviewRepository;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
@@ -56,7 +58,7 @@ public class ReviewService {
                 .comment(request.comment() == null || request.comment().isBlank() ? null : request.comment().trim())
                 .build());
         reviewRepository.flush();
-        updateReputation(reviewee);
+        recalculateReputation(reviewee);
         events.publishEvent(new ReviewCreatedEvent(review));
         return ReviewResponse.from(review);
     }
@@ -64,12 +66,34 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public PageResponse<ReviewResponse> listForUser(Long userId, Integer page, Integer size) {
         return PageResponse.of(
-                reviewRepository.findByRevieweeId(userId, PageQuery.of(page, size, NEWEST_FIRST)),
+                reviewRepository.findByRevieweeIdAndHiddenFalse(userId, PageQuery.of(page, size, NEWEST_FIRST)),
                 ReviewResponse::from);
     }
 
-    /** Recomputes from all reviews instead of adjusting incrementally, so the score can never drift. */
-    private void updateReputation(User user) {
+    /**
+     * The reviewed person answers a review publicly, once. The answer cannot be edited, so it
+     * cannot be changed after the reviewer has read it.
+     */
+    @Transactional
+    public ReviewResponse reply(Long userId, Long reviewId, String reply) {
+        Review review = reviewRepository.findWithDetailsById(reviewId)
+                .filter(found -> !found.isHidden())
+                .orElseThrow(() -> ApiException.notFound("Review not found"));
+        if (!review.getReviewee().getId().equals(userId)) {
+            throw ApiException.forbidden("Only the reviewed person can reply to a review");
+        }
+        if (review.getReply() != null) {
+            throw ApiException.conflict("You have already replied to this review");
+        }
+        review.setReply(reply.strip());
+        review.setRepliedAt(Instant.now());
+        events.publishEvent(new ReviewRepliedEvent(review));
+        return ReviewResponse.from(review);
+    }
+
+    /** Recomputes from all visible reviews instead of adjusting incrementally, so the score can never drift. */
+    @Transactional
+    public void recalculateReputation(User user) {
         RatingStats stats = reviewRepository.ratingStats(user.getId());
         user.setReputationScore(stats.average() == null
                 ? null

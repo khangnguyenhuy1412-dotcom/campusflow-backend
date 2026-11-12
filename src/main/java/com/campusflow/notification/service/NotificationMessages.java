@@ -5,7 +5,8 @@ import com.campusflow.exchange.event.ExchangeEvent;
 import com.campusflow.item.entity.Item;
 import com.campusflow.moderation.entity.Report;
 import com.campusflow.moderation.entity.ReportStatus;
-import com.campusflow.moderation.entity.ReportTargetType;
+import com.campusflow.review.entity.Review;
+import com.campusflow.support.entity.SupportTicket;
 import com.campusflow.notification.entity.NotificationType;
 import com.campusflow.review.entity.Review;
 import com.campusflow.user.entity.User;
@@ -89,9 +90,11 @@ public final class NotificationMessages {
     }
 
     public static NotificationDraft forReportHandled(Report report) {
-        String target = report.getTargetType() == ReportTargetType.ITEM
-                ? "tin " + quote(report.getTargetItem().getTitle())
-                : "người dùng " + report.getTargetUser().getFullName();
+        String target = switch (report.getTargetType()) {
+            case ITEM -> "tin " + quote(report.getTargetItem().getTitle());
+            case REVIEW -> "đánh giá của " + report.getTargetUser().getFullName();
+            case USER -> "người dùng " + report.getTargetUser().getFullName();
+        };
         String message = report.getStatus() == ReportStatus.DISMISSED
                 ? "Báo cáo của bạn về " + target + " đã được xem xét và chưa thấy vi phạm quy định."
                 : "Cảm ơn bạn! Báo cáo về " + target + " đã được xử lý.";
@@ -113,6 +116,30 @@ public final class NotificationMessages {
                 "Có món phù hợp với tin “Cần tìm” của bạn",
                 quote(item.getTitle()) + " vừa được đăng, khớp với " + quote(post.getTitle()) + ". Xem ngay kẻo lỡ!",
                 item.getOwner(), item, null);
+    }
+
+    public static NotificationDraft forReviewReplied(Review review) {
+        ExchangeRequest request = review.getExchangeRequest();
+        return new NotificationDraft(review.getReviewer(), NotificationType.REVIEW_REPLIED,
+                review.getReviewee().getFullName() + " đã trả lời đánh giá của bạn",
+                truncate(review.getReply(), 300),
+                review.getReviewee(), request.getItem(), request);
+    }
+
+    public static NotificationDraft forReviewHidden(Review review, String reason) {
+        String why = reason == null || reason.isBlank() ? "vi phạm quy định cộng đồng" : reason.strip();
+        return new NotificationDraft(review.getReviewer(), NotificationType.REVIEW_HIDDEN,
+                "Đánh giá của bạn đã bị ẩn",
+                "Kiểm duyệt viên đã ẩn đánh giá của bạn cho " + review.getReviewee().getFullName()
+                        + ". Lý do: " + truncate(why, 300) + ". Bạn có thể liên hệ ban quản trị qua mục Hỗ trợ.",
+                null, null, review.getExchangeRequest());
+    }
+
+    /** The moderation team wrote in a ticket; the moderator stays anonymous. */
+    public static NotificationDraft forSupportReply(SupportTicket ticket, String message) {
+        return new NotificationDraft(ticket.getUser(), NotificationType.SUPPORT_REPLY,
+                "Ban quản trị đã trả lời: " + truncate(ticket.getSubject(), 120),
+                truncate(message, 300), null, null, null, ticket);
     }
 
     private static String truncate(String text, int max) {

@@ -8,6 +8,7 @@ import java.time.Instant;
 /**
  * @param itemId            item to open when the notification is clicked (null if deleted)
  * @param exchangeRequestId exchange request to open when the notification is clicked
+ * @param supportTicketId   support ticket to open when the notification is clicked
  */
 public record NotificationResponse(
         Long id,
@@ -17,6 +18,7 @@ public record NotificationResponse(
         UserSummaryResponse actor,
         Long itemId,
         Long exchangeRequestId,
+        Long supportTicketId,
         boolean read,
         Instant createdAt) {
 
@@ -29,6 +31,7 @@ public record NotificationResponse(
                 notification.getActor() == null ? null : UserSummaryResponse.from(notification.getActor()),
                 notification.getItem() == null ? null : notification.getItem().getId(),
                 notification.getExchangeRequest() == null ? null : notification.getExchangeRequest().getId(),
+                notification.getSupportTicket() == null ? null : notification.getSupportTicket().getId(),
                 notification.isRead(),
                 notification.getCreatedAt());
     }

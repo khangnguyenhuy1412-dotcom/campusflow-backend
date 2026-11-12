@@ -76,6 +76,21 @@ public class ModerationController {
         moderationService.restoreItem(moderatorId, id);
     }
 
+    @Operation(summary = "Hide a false or abusive review; the reputation score is recalculated without it")
+    @PostMapping("/reviews/{id}/hide")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void hideReview(@CurrentUserId Long moderatorId, @PathVariable Long id,
+            @Valid @RequestBody ModerationNoteRequest request) {
+        moderationService.hideReview(moderatorId, id, request.note());
+    }
+
+    @Operation(summary = "Show a hidden review again")
+    @PostMapping("/reviews/{id}/restore")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void restoreReview(@CurrentUserId Long moderatorId, @PathVariable Long id) {
+        moderationService.restoreReview(moderatorId, id);
+    }
+
     @Operation(summary = "Ban a user (moderators cannot ban moderators or admins)")
     @PostMapping("/users/{id}/ban")
     @ResponseStatus(HttpStatus.NO_CONTENT)
