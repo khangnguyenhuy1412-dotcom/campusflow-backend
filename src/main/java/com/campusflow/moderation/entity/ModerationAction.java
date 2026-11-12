@@ -5,5 +5,6 @@ public enum ModerationAction {
     NONE,
     REMOVE_ITEM,
     BAN_USER,
-    HIDE_REVIEW
+    HIDE_REVIEW,
+    HIDE_COMMENT
 }

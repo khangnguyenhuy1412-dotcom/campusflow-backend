@@ -1,5 +1,6 @@
 package com.campusflow.notification.service;
 
+import com.campusflow.comment.entity.ItemComment;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.event.ExchangeEvent;
 import com.campusflow.item.entity.Item;
@@ -11,6 +12,8 @@ import com.campusflow.notification.entity.NotificationType;
 import com.campusflow.review.entity.Review;
 import com.campusflow.user.entity.User;
 import com.campusflow.wanted.entity.WantedPost;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Decides who is notified about an event and writes the (Vietnamese) text.
@@ -93,6 +96,7 @@ public final class NotificationMessages {
         String target = switch (report.getTargetType()) {
             case ITEM -> "tin " + quote(report.getTargetItem().getTitle());
             case REVIEW -> "đánh giá của " + report.getTargetUser().getFullName();
+            case COMMENT -> "bình luận của " + report.getTargetUser().getFullName();
             case USER -> "người dùng " + report.getTargetUser().getFullName();
         };
         String message = report.getStatus() == ReportStatus.DISMISSED
@@ -140,6 +144,27 @@ public final class NotificationMessages {
         return new NotificationDraft(ticket.getUser(), NotificationType.SUPPORT_REPLY,
                 "Ban quản trị đã trả lời: " + truncate(ticket.getSubject(), 120),
                 truncate(message, 300), null, null, null, ticket);
+    }
+
+    /**
+     * The item owner hears about every comment on their listing; the author of the original comment
+     * hears about replies to it. Nobody is told twice about the same comment.
+     */
+    public static List<NotificationDraft> forComment(ItemComment comment) {
+        Item item = comment.getItem();
+        User author = comment.getAuthor();
+        String text = truncate(comment.getContent(), 300);
+        List<NotificationDraft> drafts = new ArrayList<>();
+        User parentAuthor = comment.getParent() == null ? null : comment.getParent().getAuthor();
+        if (parentAuthor != null) {
+            drafts.add(new NotificationDraft(parentAuthor, NotificationType.COMMENT_REPLIED,
+                    author.getFullName() + " đã trả lời bình luận của bạn", text, author, item, null));
+        }
+        if (parentAuthor == null || !parentAuthor.getId().equals(item.getOwner().getId())) {
+            drafts.add(new NotificationDraft(item.getOwner(), NotificationType.ITEM_COMMENTED,
+                    author.getFullName() + " đã bình luận về " + quote(item.getTitle()), text, author, item, null));
+        }
+        return drafts;
     }
 
     private static String truncate(String text, int max) {

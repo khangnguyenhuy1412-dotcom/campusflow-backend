@@ -91,6 +91,21 @@ public class ModerationController {
         moderationService.restoreReview(moderatorId, id);
     }
 
+    @Operation(summary = "Hide a comment under a listing")
+    @PostMapping("/comments/{id}/hide")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void hideComment(@CurrentUserId Long moderatorId, @PathVariable Long id,
+            @Valid @RequestBody ModerationNoteRequest request) {
+        moderationService.hideComment(moderatorId, id, request.note());
+    }
+
+    @Operation(summary = "Show a hidden comment again")
+    @PostMapping("/comments/{id}/restore")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void restoreComment(@CurrentUserId Long moderatorId, @PathVariable Long id) {
+        moderationService.restoreComment(moderatorId, id);
+    }
+
     @Operation(summary = "Ban a user (moderators cannot ban moderators or admins)")
     @PostMapping("/users/{id}/ban")
     @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -19,7 +19,11 @@ public enum NotificationType {
     /** A moderator hid the user's review. */
     REVIEW_HIDDEN(false),
     /** The moderation team wrote in a support ticket. */
-    SUPPORT_REPLY(true);
+    SUPPORT_REPLY(true),
+    /** Someone commented on the user's listing. */
+    ITEM_COMMENTED(false),
+    /** Someone replied to the user's comment. */
+    COMMENT_REPLIED(false);
 
     private final boolean emailed;
 

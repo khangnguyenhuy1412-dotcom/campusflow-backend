@@ -1,5 +1,7 @@
 package com.campusflow.moderation.service;
 
+import com.campusflow.comment.entity.ItemComment;
+import com.campusflow.comment.repository.ItemCommentRepository;
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.item.entity.Item;
 import com.campusflow.item.entity.ItemStatus;
@@ -26,13 +28,23 @@ public class ReportService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final ReviewRepository reviewRepository;
+    private final ItemCommentRepository commentRepository;
 
     @Transactional
     public MyReportResponse create(Long userId, CreateReportRequest request) {
         Item item = null;
         Review review = null;
+        ItemComment comment = null;
         User targetUser;
-        if (request.targetType() == ReportTargetType.REVIEW) {
+        if (request.targetType() == ReportTargetType.COMMENT) {
+            comment = commentRepository.findWithDetailsById(request.targetId())
+                    .filter(ItemComment::isVisible)
+                    .orElseThrow(() -> ApiException.notFound("Comment not found"));
+            if (comment.isWrittenBy(userId)) {
+                throw ApiException.badRequest("You cannot report your own comment");
+            }
+            targetUser = comment.getAuthor();
+        } else if (request.targetType() == ReportTargetType.REVIEW) {
             review = reviewRepository.findWithDetailsById(request.targetId())
                     .filter(found -> !found.isHidden())
                     .orElseThrow(() -> ApiException.notFound("Review not found"));
@@ -57,7 +69,8 @@ public class ReportService {
             }
         }
         if (reportRepository.existsOpenDuplicate(userId, request.targetType(),
-                item == null ? null : item.getId(), review == null ? null : review.getId(), targetUser.getId())) {
+                item == null ? null : item.getId(), review == null ? null : review.getId(),
+                comment == null ? null : comment.getId(), targetUser.getId())) {
             throw ApiException.conflict("You already reported this; a moderator will review it");
         }
 
@@ -66,6 +79,7 @@ public class ReportService {
                 .targetType(request.targetType())
                 .targetItem(item)
                 .targetReview(review)
+                .targetComment(comment)
                 .targetUser(targetUser)
                 .reason(request.reason())
                 .details(request.details() == null || request.details().isBlank() ? null : request.details().strip())
