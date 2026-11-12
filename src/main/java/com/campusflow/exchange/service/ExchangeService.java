@@ -222,16 +222,12 @@ public class ExchangeService {
 
     /**
      * Cancels pending requests that offer this item, because it can no longer be given
-     * (it was traded or deleted). The owners of the wanted items are notified.
-     *
-     * @return the cancelled requests
+     * (it was traded). The owners of the wanted items are notified.
      */
     @Transactional
-    public List<ExchangeRequest> cancelOpenOffersOf(Item item) {
-        List<ExchangeRequest> requests =
-                exchangeRequestRepository.findByOfferedItemIdAndStatus(item.getId(), ExchangeStatus.PENDING);
-        requests.forEach(request -> transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.AUTO_CANCELLED, null));
-        return requests;
+    public void cancelOpenOffersOf(Item item) {
+        exchangeRequestRepository.findByOfferedItemIdAndStatus(item.getId(), ExchangeStatus.PENDING)
+                .forEach(request -> transition(request, ExchangeStatus.CANCELLED, ExchangeEventType.AUTO_CANCELLED, null));
     }
 
     /**

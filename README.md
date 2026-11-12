@@ -191,7 +191,16 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
-### 5. Chạy kiểm thử
+### 5. Lưu trữ ảnh
+- Mặc định (`STORAGE_TYPE=local`): ảnh lưu trong thư mục `uploads/`, phục vụ tại `/uploads/**`.
+- Production nên dùng `STORAGE_TYPE=cloudinary` + `CLOUDINARY_URL` (ảnh qua CDN, không mất khi deploy lại).
+  Ảnh luôn được kiểm tra, resize và xóa metadata (GPS) trước khi lưu, dù dùng loại lưu trữ nào.
+
+### 6. Triển khai
+Xem **[DEPLOYMENT.md](DEPLOYMENT.md)**: biến môi trường, Docker Compose cho VPS, Render/Railway, tạo admin đầu tiên,
+checklist an toàn. Health check: `GET /actuator/health`.
+
+### 7. Chạy kiểm thử
 ```bash
 ./mvnw test        # Windows: .\mvnw.cmd test
 ```

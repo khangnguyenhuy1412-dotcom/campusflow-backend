@@ -27,6 +27,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",
             "/uploads/**",
+            "/actuator/health",
             // WebSocket handshake; the JWT is checked on the STOMP CONNECT frame instead
             "/ws",
             "/ws/**",

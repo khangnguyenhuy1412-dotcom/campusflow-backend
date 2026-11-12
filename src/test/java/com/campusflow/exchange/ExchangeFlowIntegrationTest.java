@@ -1,6 +1,7 @@
 package com.campusflow.exchange;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -66,6 +67,30 @@ class ExchangeFlowIntegrationTest extends IntegrationTest {
         JsonNode requesterNotifications = read(mockMvc.perform(as(requester, get("/api/notifications"))));
         assertThat(requesterNotifications.path("content").findValuesAsString("type"))
                 .contains("EXCHANGE_ACCEPTED", "EXCHANGE_COMPLETED");
+    }
+
+    @Test
+    void deletingAnItemKeepsHistoryAndTellsRequesters() throws Exception {
+        TestUser owner = registerVerifiedUser("Owner");
+        TestUser requester = registerVerifiedUser("Requester");
+        long itemId = createItem(owner, "Ghế xếp", "GIVEAWAY");
+        long requestId = request(requester, itemId);
+
+        mockMvc.perform(as(owner, delete("/api/items/{id}", itemId))).andExpect(status().isNoContent());
+
+        // Gone for everyone, including the owner...
+        mockMvc.perform(get("/api/items/{id}", itemId)).andExpect(status().isNotFound());
+        mockMvc.perform(as(owner, get("/api/items/{id}", itemId))).andExpect(status().isNotFound());
+        mockMvc.perform(as(owner, get("/api/users/me/items")))
+                .andExpect(jsonPath("$.content[?(@.id == " + itemId + ")]").isEmpty());
+        // ...but the request history keeps it, cancelled, and the requester was told
+        mockMvc.perform(as(requester, get("/api/exchange-requests/{id}", requestId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.item.title").value("Ghế xếp"));
+        JsonNode notifications = read(mockMvc.perform(as(requester, get("/api/notifications"))));
+        assertThat(notifications.path("content").findValuesAsString("message"))
+                .anyMatch(message -> message.contains("không còn trên CampusFlow"));
     }
 
     /** Repeated because race conditions do not show up on every run. */

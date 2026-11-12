@@ -6,12 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.campusflow.category.entity.Category;
 import com.campusflow.category.service.CategoryService;
 import com.campusflow.common.exception.ApiException;
-import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.service.ExchangeService;
 import com.campusflow.item.dto.ItemDetailResponse;
 import com.campusflow.item.dto.ItemRequest;
@@ -133,17 +131,27 @@ class ItemServiceTest {
     }
 
     @Test
-    void deleteRemovesImagesAfterCommitAndClosesOffers() {
+    void deleteIsSoftClosesOpenDealsAndRemovesImagesAfterCommit() {
         Item item = existing(ItemStatus.AVAILABLE);
         item.getImages().add(ItemImage.builder().imageUrl("/uploads/a.jpg").thumbnailUrl("/uploads/a_t.jpg").build());
-        ExchangeRequest offering = ExchangeRequest.builder().id(100L).offeredItem(item).build();
-        when(exchangeService.cancelOpenOffersOf(item)).thenReturn(List.of(offering));
 
         service.delete(1L, 10L);
 
-        assertThat(offering.getOfferedItem()).as("no reference to the deleted item").isNull();
-        verify(itemRepository).delete(item);
+        assertThat(item.getStatus()).isEqualTo(ItemStatus.DELETED);
+        assertThat(item.getImages()).isEmpty();
+        verify(exchangeService).closeAllFor(item);
+        verify(itemRepository, never()).delete(any(Item.class));
         verify(storedFileCleanup).deleteAfterCommit(List.of("/uploads/a.jpg", "/uploads/a_t.jpg"));
+    }
+
+    @Test
+    void deletedItemIsGoneEvenForItsOwner() {
+        existing(ItemStatus.DELETED);
+
+        assertThatThrownBy(() -> service.getDetail(10L, 1L))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.update(1L, 10L, request(ItemType.SALE, "1000", null)))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
     }
 
     @Test

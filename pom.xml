@@ -91,6 +91,17 @@
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>3.1.1</version>
 		</dependency>
+		<!-- Health endpoint for the hosting platform / Docker healthcheck (only /actuator/health is exposed) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<!-- Cloud image storage in production (STORAGE_TYPE=cloudinary) -->
+		<dependency>
+			<groupId>com.cloudinary</groupId>
+			<artifactId>cloudinary-http5</artifactId>
+			<version>2.5.0</version>
+		</dependency>
 		<!-- QR code generation for meetup (handover) confirmation -->
 		<dependency>
 			<groupId>com.google.zxing</groupId>

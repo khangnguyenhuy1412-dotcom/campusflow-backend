@@ -1,0 +1,26 @@
+# Production overrides, active with SPRING_PROFILES_ACTIVE=prod (set by the Dockerfile).
+# Everything secret or environment-specific still comes from environment variables.
+
+server:
+  # Hosting platforms (Render, Railway...) and Nginx sit in front of the app: read the real client IP
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:native}
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+# API docs are off unless explicitly enabled (e.g. API_DOCS_ENABLED=true for a thesis demo)
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+
+logging:
+  level:
+    root: INFO
+    com.campusflow: INFO
+    org.hibernate.SQL: WARN

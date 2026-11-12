@@ -2,6 +2,7 @@ package com.campusflow.moderation.service;
 
 import com.campusflow.common.exception.ApiException;
 import com.campusflow.item.entity.Item;
+import com.campusflow.item.entity.ItemStatus;
 import com.campusflow.item.repository.ItemRepository;
 import com.campusflow.moderation.dto.CreateReportRequest;
 import com.campusflow.moderation.dto.MyReportResponse;
@@ -29,6 +30,7 @@ public class ReportService {
         User targetUser;
         if (request.targetType() == ReportTargetType.ITEM) {
             item = itemRepository.findWithDetailsById(request.targetId())
+                    .filter(found -> found.getStatus() != ItemStatus.DELETED)
                     .orElseThrow(() -> ApiException.notFound("Item not found"));
             if (item.isOwnedBy(userId)) {
                 throw ApiException.badRequest("You cannot report your own item");
