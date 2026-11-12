@@ -18,7 +18,7 @@ public record UserSummaryResponse(
                 user.getId(),
                 user.getFullName(),
                 user.getAvatarUrl(),
-                user.getUniversity(),
+                user.getUniversityName(),
                 user.getReputationScore(),
                 user.getReviewCount(),
                 user.isVerified());

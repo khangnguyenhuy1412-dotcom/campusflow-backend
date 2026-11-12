@@ -44,6 +44,12 @@ class NotificationMessagesTest {
     }
 
     @Test
+    void completionByEitherSideNotifiesTheOther() {
+        assertThat(draft(ExchangeEventType.COMPLETED, 1L).recipient()).as("owner completed").isSameAs(requester);
+        assertThat(draft(ExchangeEventType.COMPLETED, 2L).recipient()).as("receiver confirmed handover").isSameAs(owner);
+    }
+
+    @Test
     void automaticRejectionHasNoActor() {
         NotificationDraft draft = draft(ExchangeEventType.AUTO_REJECTED, null);
 

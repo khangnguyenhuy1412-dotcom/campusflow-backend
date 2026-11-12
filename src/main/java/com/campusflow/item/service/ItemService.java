@@ -18,14 +18,17 @@ import com.campusflow.item.entity.ItemType;
 import com.campusflow.item.repository.ItemRepository;
 import com.campusflow.item.repository.ItemSpecifications;
 import com.campusflow.storage.StoredFileCleanup;
+import com.campusflow.university.entity.University;
 import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
+import com.campusflow.wanted.event.ItemPublishedEvent;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,9 +47,20 @@ public class ItemService {
     private final CategoryService categoryService;
     private final ExchangeService exchangeService;
     private final StoredFileCleanup storedFileCleanup;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public PageResponse<ItemSummaryResponse> search(ItemSearchCriteria criteria, ItemSort sort, Integer page, Integer size) {
+        return search(criteria, sort, page, size, null, false);
+    }
+
+    /** With {@code sameUniversity}, only items from students of the current user's university are shown. */
+    @Transactional(readOnly = true)
+    public PageResponse<ItemSummaryResponse> search(ItemSearchCriteria criteria, ItemSort sort, Integer page,
+            Integer size, Long currentUserId, boolean sameUniversity) {
+        if (sameUniversity) {
+            criteria = criteria.withUniversityId(currentUniversityId(currentUserId));
+        }
         if (criteria.minPrice() != null && criteria.maxPrice() != null
                 && criteria.minPrice().compareTo(criteria.maxPrice()) > 0) {
             throw ApiException.badRequest("minPrice must not be greater than maxPrice");
@@ -55,6 +69,16 @@ public class ItemService {
         return PageResponse.of(
                 itemRepository.findAll(ItemSpecifications.publicSearch(criteria), PageQuery.of(page, size, safeSort.toSort())),
                 ItemSummaryResponse::from);
+    }
+
+    private Long currentUniversityId(Long userId) {
+        if (userId == null) {
+            throw ApiException.unauthorized("Log in to filter by your university");
+        }
+        return userRepository.findById(userId)
+                .map(User::getUniversity)
+                .map(University::getId)
+                .orElseThrow(() -> ApiException.badRequest("Your university is not recognised yet"));
     }
 
     /** Hidden and removed items are only visible to their owner; for everyone else they do not exist. */
@@ -90,7 +114,9 @@ public class ItemService {
         User owner = userRepository.findById(userId).orElseThrow(() -> ApiException.notFound("User not found"));
         Item item = Item.builder().owner(owner).build();
         apply(item, request);
-        return ItemDetailResponse.from(itemRepository.save(item));
+        Item saved = itemRepository.save(item);
+        events.publishEvent(new ItemPublishedEvent(saved.getId()));
+        return ItemDetailResponse.from(saved);
     }
 
     @Transactional

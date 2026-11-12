@@ -26,7 +26,7 @@ public record AdminUserResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
-                user.getUniversity(),
+                user.getUniversityName(),
                 user.isVerified(),
                 user.isActive(),
                 user.getBannedAt(),

@@ -7,7 +7,6 @@ import com.campusflow.item.entity.ItemStatus;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 
 /** Builds the dynamic WHERE clause for the public item search. */
@@ -44,10 +43,8 @@ public final class ItemSpecifications {
             if (criteria.maxPrice() != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("price"), criteria.maxPrice()));
             }
-            if (hasText(criteria.university())) {
-                predicates.add(cb.equal(
-                        cb.lower(root.get("owner").get("university")),
-                        criteria.university().trim().toLowerCase(Locale.ROOT)));
+            if (criteria.universityId() != null) {
+                predicates.add(cb.equal(root.get("owner").get("university").get("id"), criteria.universityId()));
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };

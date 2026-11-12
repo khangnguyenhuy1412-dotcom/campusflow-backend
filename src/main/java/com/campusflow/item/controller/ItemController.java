@@ -52,8 +52,10 @@ public class ItemController {
             @Valid @ParameterObject @ModelAttribute ItemSearchCriteria criteria,
             @RequestParam(required = false) ItemSort sort,
             @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
-        return itemService.search(criteria, sort, page, size);
+            @RequestParam(required = false) Integer size,
+            @RequestParam(defaultValue = "false") boolean sameUniversity,
+            @CurrentUserId(required = false) Long userId) {
+        return itemService.search(criteria, sort, page, size, userId, sameUniversity);
     }
 
     @Operation(summary = "Item details; hidden items only for their owner")

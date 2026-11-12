@@ -2,8 +2,10 @@ package com.campusflow.exchange.controller;
 
 import com.campusflow.common.dto.PageResponse;
 import com.campusflow.common.web.CurrentUserId;
+import com.campusflow.exchange.dto.ConfirmHandoverRequest;
 import com.campusflow.exchange.dto.CreateExchangeRequest;
 import com.campusflow.exchange.dto.ExchangeRequestResponse;
+import com.campusflow.exchange.dto.HandoverCodeResponse;
 import com.campusflow.exchange.entity.ExchangeStatus;
 import com.campusflow.exchange.service.ExchangeService;
 import com.campusflow.ratelimit.RateLimit;
@@ -81,7 +83,21 @@ public class ExchangeRequestController {
         return exchangeService.cancel(userId, id);
     }
 
-    @Operation(summary = "Owner confirms the hand-over")
+    @Operation(summary = "Giver (owner) gets a 10-minute code + QR image to show at the meetup")
+    @PostMapping("/{id}/handover-code")
+    public HandoverCodeResponse handoverCode(@CurrentUserId Long userId, @PathVariable Long id) {
+        return exchangeService.issueHandoverCode(userId, id);
+    }
+
+    @Operation(summary = "Receiver confirms the hand-over with the giver's code (or scanned QR); completes the deal")
+    @RateLimit(policy = RateLimitPolicy.VERIFY_CODE, key = RateLimit.Key.USER)
+    @PostMapping("/{id}/confirm-handover")
+    public ExchangeRequestResponse confirmHandover(@CurrentUserId Long userId, @PathVariable Long id,
+            @Valid @RequestBody ConfirmHandoverRequest request) {
+        return exchangeService.confirmHandover(userId, id, request.code());
+    }
+
+    @Operation(summary = "Owner confirms the hand-over without a meetup code")
     @PostMapping("/{id}/complete")
     public ExchangeRequestResponse complete(@CurrentUserId Long userId, @PathVariable Long id) {
         return exchangeService.complete(userId, id);

@@ -11,7 +11,9 @@ public enum NotificationType {
     /** Tells a reporter that their report was handled. */
     REPORT_RESOLVED(false),
     /** Tells an owner that a moderator removed their listing. */
-    ITEM_REMOVED(true);
+    ITEM_REMOVED(true),
+    /** A new listing matches the user's "Cần tìm" post. */
+    WANTED_MATCH(true);
 
     private final boolean emailed;
 

@@ -4,8 +4,10 @@ import com.campusflow.block.service.BlockService;
 import com.campusflow.common.dto.PageQuery;
 import com.campusflow.common.dto.PageResponse;
 import com.campusflow.common.exception.ApiException;
+import com.campusflow.common.util.Hashing;
 import com.campusflow.exchange.dto.CreateExchangeRequest;
 import com.campusflow.exchange.dto.ExchangeRequestResponse;
+import com.campusflow.exchange.dto.HandoverCodeResponse;
 import com.campusflow.exchange.entity.ExchangeRequest;
 import com.campusflow.exchange.entity.ExchangeStatus;
 import com.campusflow.exchange.event.ExchangeEvent;
@@ -19,9 +21,13 @@ import com.campusflow.user.entity.User;
 import com.campusflow.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -43,6 +49,13 @@ public class ExchangeService {
 
     private static final Set<ExchangeStatus> ACTIVE = EnumSet.of(ExchangeStatus.PENDING, ExchangeStatus.ACCEPTED);
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
+    /** No 0/O or 1/I, so the code is easy to read out and type at a meetup. */
+    private static final String HANDOVER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final int HANDOVER_CODE_LENGTH = 8;
+    private static final Duration HANDOVER_CODE_TTL = Duration.ofMinutes(10);
+    private static final int MAX_HANDOVER_ATTEMPTS = 5;
+    private static final String HANDOVER_QR_PREFIX = "campusflow:handover:";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final ExchangeRequestRepository exchangeRequestRepository;
     private final ItemRepository itemRepository;
@@ -50,6 +63,7 @@ public class ExchangeService {
     private final ApplicationEventPublisher events;
     private final EntityManager entityManager;
     private final BlockService blockService;
+    private final QrCodeGenerator qrCodeGenerator;
 
     @Transactional
     public ExchangeRequestResponse create(Long userId, CreateExchangeRequest request) {
@@ -139,13 +153,71 @@ public class ExchangeService {
     @Transactional
     public ExchangeRequestResponse complete(Long userId, Long requestId) {
         ExchangeRequest request = lockAsOwner(userId, requestId);
+        finish(request, userId);
+        return ExchangeRequestResponse.from(request, userId);
+    }
+
+    /**
+     * Owner (giver) creates a short-lived code for the meetup. A new code replaces the previous one
+     * and resets the attempt counter.
+     */
+    @Transactional
+    public HandoverCodeResponse issueHandoverCode(Long userId, Long requestId) {
+        ExchangeRequest request = lockAsOwner(userId, requestId);
         requireStatus(request, ExchangeStatus.ACCEPTED);
-        transition(request, ExchangeStatus.COMPLETED, ExchangeEventType.COMPLETED, userId);
+        StringBuilder code = new StringBuilder(HANDOVER_CODE_LENGTH);
+        for (int i = 0; i < HANDOVER_CODE_LENGTH; i++) {
+            code.append(HANDOVER_ALPHABET.charAt(SECURE_RANDOM.nextInt(HANDOVER_ALPHABET.length())));
+        }
+        Instant expiresAt = Instant.now().plus(HANDOVER_CODE_TTL);
+        request.setHandoverCodeHash(Hashing.sha256Hex(code.toString()));
+        request.setHandoverCodeExpiresAt(expiresAt);
+        request.setHandoverAttempts(0);
+
+        String payload = HANDOVER_QR_PREFIX + request.getId() + ":" + code;
+        return new HandoverCodeResponse(code.toString(), payload, qrCodeGenerator.toPngDataUrl(payload), expiresAt);
+    }
+
+    /**
+     * Requester (receiver) confirms the hand-over with the giver's code, which completes the deal
+     * as "verified at a meetup". Wrong codes are counted even though an error is returned.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
+    public ExchangeRequestResponse confirmHandover(Long userId, Long requestId, String submitted) {
+        ExchangeRequest request = lock(loadAsParticipant(userId, requestId));
+        if (!request.isRequester(userId)) {
+            throw ApiException.forbidden("Only the receiver confirms the hand-over, using the giver's code");
+        }
+        requireStatus(request, ExchangeStatus.ACCEPTED);
+        if (request.getHandoverCodeHash() == null || request.getHandoverCodeExpiresAt().isBefore(Instant.now())
+                || request.getHandoverAttempts() >= MAX_HANDOVER_ATTEMPTS) {
+            throw ApiException.badRequest("The code is invalid or expired. Ask the giver to show a new one");
+        }
+        String code = submitted.strip().toUpperCase(Locale.ROOT);
+        String qrPrefix = (HANDOVER_QR_PREFIX + request.getId() + ":").toUpperCase(Locale.ROOT);
+        if (code.startsWith(qrPrefix)) {
+            code = code.substring(qrPrefix.length());
+        }
+        if (!Hashing.matches(request.getHandoverCodeHash(), Hashing.sha256Hex(code))) {
+            request.setHandoverAttempts(request.getHandoverAttempts() + 1);
+            throw ApiException.badRequest("Wrong code, "
+                    + Math.max(0, MAX_HANDOVER_ATTEMPTS - request.getHandoverAttempts()) + " attempt(s) left");
+        }
+        request.setHandoverCodeHash(null);
+        request.setHandoverCodeExpiresAt(null);
+        request.setHandoverVerified(true);
+        finish(request, userId);
+        return ExchangeRequestResponse.from(request, userId);
+    }
+
+    /** Marks an accepted deal as completed and both items as traded. */
+    private void finish(ExchangeRequest request, Long actorId) {
+        requireStatus(request, ExchangeStatus.ACCEPTED);
+        transition(request, ExchangeStatus.COMPLETED, ExchangeEventType.COMPLETED, actorId);
         markTraded(request.getItem());
         if (request.getOfferedItem() != null) {
             markTraded(request.getOfferedItem());
         }
-        return ExchangeRequestResponse.from(request, userId);
     }
 
     /**

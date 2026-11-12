@@ -14,5 +14,9 @@ public record ItemSearchCriteria(
         ItemCondition condition,
         @DecimalMin("0") BigDecimal minPrice,
         @DecimalMin("0") BigDecimal maxPrice,
-        @Size(max = 150) String university) {
+        Long universityId) {
+
+    public ItemSearchCriteria withUniversityId(Long newUniversityId) {
+        return new ItemSearchCriteria(keyword, categoryId, type, condition, minPrice, maxPrice, newUniversityId);
+    }
 }

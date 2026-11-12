@@ -43,7 +43,6 @@ public class UserService {
         User user = getActiveUser(userId);
         user.setFullName(request.fullName().trim());
         user.setStudentId(blankToNull(request.studentId()));
-        user.setUniversity(blankToNull(request.university()));
         user.setPhoneNumber(blankToNull(request.phoneNumber()));
         return UserResponse.from(user);
     }
