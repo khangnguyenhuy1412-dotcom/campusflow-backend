@@ -1,5 +1,6 @@
 package com.campusflow.moderation.entity;
 
+import com.campusflow.comment.entity.ItemComment;
 import com.campusflow.item.entity.Item;
 import com.campusflow.review.entity.Review;
 import com.campusflow.user.entity.User;
@@ -23,8 +24,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * A user's report about a listing, a review or another user. {@code targetUser} is always the
- * person concerned (item owner, review author or the reported user), so reports can be grouped by user.
+ * A user's report about a listing, a review, a comment or another user. {@code targetUser} is always
+ * the person concerned (item owner, review or comment author, or the reported user), so reports can be grouped by user.
  */
 @Entity
 @Table(name = "reports")
@@ -54,6 +55,10 @@ public class Report {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "target_review_id")
     private Review targetReview;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_comment_id")
+    private ItemComment targetComment;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "target_user_id", nullable = false)

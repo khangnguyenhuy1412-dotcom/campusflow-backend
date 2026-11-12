@@ -2,6 +2,8 @@ package com.campusflow.moderation.service;
 
 import com.campusflow.audit.entity.AuditAction;
 import com.campusflow.audit.service.AuditService;
+import com.campusflow.comment.entity.ItemComment;
+import com.campusflow.comment.repository.ItemCommentRepository;
 import com.campusflow.common.dto.PageQuery;
 import com.campusflow.common.dto.PageResponse;
 import com.campusflow.common.exception.ApiException;
@@ -49,6 +51,7 @@ public class ModerationService {
     private final ApplicationEventPublisher events;
     private final ReviewRepository reviewRepository;
     private final ReviewService reviewService;
+    private final ItemCommentRepository commentRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<ReportDetailResponse> queue(ReportStatus status, Integer page, Integer size) {
@@ -81,6 +84,12 @@ public class ModerationService {
                 removeItem(moderatorId, report.getTargetItem().getId(), request.note());
             }
             case BAN_USER -> accountBanService.ban(moderatorId, report.getTargetUser().getId(), request.note());
+            case HIDE_COMMENT -> {
+                if (report.getTargetType() != ReportTargetType.COMMENT) {
+                    throw ApiException.badRequest("HIDE_COMMENT is only possible for reports about a comment");
+                }
+                hideComment(moderatorId, report.getTargetComment().getId(), request.note());
+            }
             case HIDE_REVIEW -> {
                 if (report.getTargetType() != ReportTargetType.REVIEW) {
                     throw ApiException.badRequest("HIDE_REVIEW is only possible for reports about a review");
@@ -94,6 +103,7 @@ public class ModerationService {
         closed.addAll(reportRepository.findOpenForSameTarget(report.getId(),
                 report.getTargetItem() == null ? null : report.getTargetItem().getId(),
                 report.getTargetReview() == null ? null : report.getTargetReview().getId(),
+                report.getTargetComment() == null ? null : report.getTargetComment().getId(),
                 report.getTargetUser().getId()));
         User moderator = userRepository.getReferenceById(moderatorId);
         for (Report each : closed) {
@@ -168,6 +178,27 @@ public class ModerationService {
         reviewRepository.flush();
         reviewService.recalculateReputation(review.getReviewee());
         auditService.record(moderatorId, AuditAction.REVIEW_RESTORED, "REVIEW", review.getId(), null);
+    }
+
+    @Transactional
+    public void hideComment(Long moderatorId, Long commentId, String reason) {
+        ItemComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> ApiException.notFound("Comment not found"));
+        if (!comment.isHidden()) {
+            comment.setHidden(true);
+            auditService.record(moderatorId, AuditAction.COMMENT_HIDDEN, "COMMENT", commentId, reason);
+        }
+    }
+
+    @Transactional
+    public void restoreComment(Long moderatorId, Long commentId) {
+        ItemComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> ApiException.notFound("Comment not found"));
+        if (!comment.isHidden()) {
+            throw ApiException.conflict("Only hidden comments can be restored");
+        }
+        comment.setHidden(false);
+        auditService.record(moderatorId, AuditAction.COMMENT_RESTORED, "COMMENT", commentId, null);
     }
 
     private Report getReport(Long reportId) {

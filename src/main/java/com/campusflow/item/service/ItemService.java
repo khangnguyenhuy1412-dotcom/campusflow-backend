@@ -86,11 +86,18 @@ public class ItemService {
     /** Hidden and removed items are only visible to their owner; for everyone else they do not exist. */
     @Transactional(readOnly = true)
     public ItemDetailResponse getDetail(Long itemId, Long currentUserId) {
-        Item item = itemRepository.findWithDetailsById(itemId)
+        return ItemDetailResponse.from(getVisibleItem(itemId, currentUserId));
+    }
+
+    /**
+     * The item as the viewer may see it (null viewer = anonymous). Runs in the caller's
+     * transaction; also used for comments, which are visible exactly when the item is.
+     */
+    public Item getVisibleItem(Long itemId, Long viewerId) {
+        return itemRepository.findWithDetailsById(itemId)
                 .filter(found -> found.getStatus() != ItemStatus.DELETED)
-                .filter(found -> !OWNER_ONLY_STATUSES.contains(found.getStatus()) || found.isOwnedBy(currentUserId))
+                .filter(found -> !OWNER_ONLY_STATUSES.contains(found.getStatus()) || found.isOwnedBy(viewerId))
                 .orElseThrow(ItemService::itemNotFound);
-        return ItemDetailResponse.from(item);
     }
 
     @Transactional(readOnly = true)

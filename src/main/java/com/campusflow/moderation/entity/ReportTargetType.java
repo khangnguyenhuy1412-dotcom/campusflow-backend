@@ -4,5 +4,6 @@ package com.campusflow.moderation.entity;
 public enum ReportTargetType {
     ITEM,
     USER,
-    REVIEW
+    REVIEW,
+    COMMENT
 }

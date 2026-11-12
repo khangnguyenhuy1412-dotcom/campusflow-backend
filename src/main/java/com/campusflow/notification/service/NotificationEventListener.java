@@ -1,5 +1,6 @@
 package com.campusflow.notification.service;
 
+import com.campusflow.comment.event.CommentCreatedEvent;
 import com.campusflow.exchange.event.ExchangeEvent;
 import com.campusflow.moderation.event.ItemRemovedEvent;
 import com.campusflow.moderation.event.ReportHandledEvent;
@@ -55,6 +56,11 @@ public class NotificationEventListener {
     @EventListener
     public void onReviewHidden(ReviewHiddenEvent event) {
         notificationService.create(NotificationMessages.forReviewHidden(event.review(), event.reason()));
+    }
+
+    @EventListener
+    public void onComment(CommentCreatedEvent event) {
+        NotificationMessages.forComment(event.comment()).forEach(notificationService::create);
     }
 
     /** Only staff messages notify the user; staff watch the ticket queue instead. */
