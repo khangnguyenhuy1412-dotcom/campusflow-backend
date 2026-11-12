@@ -16,5 +16,10 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
 USER appuser
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENV SPRING_PROFILES_ACTIVE=prod
+# Leave room for the OS inside small containers; tune with JAVA_OPTS
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:8080/actuator/health | grep -q '"UP"' || exit 1
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
 

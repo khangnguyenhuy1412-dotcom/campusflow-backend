@@ -1,0 +1,44 @@
+# Production-style stack for a single server (VPS): the app + MySQL.
+#   cp .env.example .env   # fill in real secrets, SMTP and (optionally) Cloudinary
+#   docker compose -f docker-compose.prod.yml up -d --build
+# MySQL is not published to the internet; only the app port is.
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: campusflow-prod-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-campusflow_db}
+      MYSQL_USER: ${DB_USER:-campusflow_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: campusflow-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: 3306
+      STORAGE_LOCAL_ROOT: /app/uploads
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      # Keeps uploaded images when the container is rebuilt (not needed with STORAGE_TYPE=cloudinary)
+      - uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  uploads:

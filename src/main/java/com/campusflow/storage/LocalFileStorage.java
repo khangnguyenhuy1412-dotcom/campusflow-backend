@@ -8,11 +8,16 @@ import java.time.YearMonth;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Writes files under {@code app.storage.local-root}, in folders like {@code items/2026/10/<uuid>.jpg}. */
+/**
+ * Writes files under {@code app.storage.local-root}, in folders like {@code items/2026/10/<uuid>.jpg}.
+ * Default storage (development, or a server with a persistent disk); see CloudinaryStorageConfig.
+ */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalFileStorage implements FileStorage {
 
     private static final Pattern SAFE_FOLDER = Pattern.compile("[a-z0-9-]+");

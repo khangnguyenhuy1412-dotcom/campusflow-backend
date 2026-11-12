@@ -75,9 +75,14 @@ app:
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
   storage:
+    # local (files on this server's disk) or cloudinary (needs CLOUDINARY_URL)
+    type: ${STORAGE_TYPE:local}
     local-root: ${STORAGE_LOCAL_ROOT:./uploads}
     # Must match the "/uploads/**" rule in SecurityConfig
     public-url-prefix: /uploads
+    cloudinary:
+      url: ${CLOUDINARY_URL:}
+      folder: ${CLOUDINARY_FOLDER:campusflow}
   verification:
     code-ttl: 10m
     max-attempts: 5
@@ -93,3 +98,17 @@ springdoc:
     persist-authorization: true
     operations-sorter: method
   default-produces-media-type: application/json
+
+# Only the health endpoint is exposed (for Docker / the hosting platform); details stay hidden
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    # Mail is checked by sending, not by health: an SMTP hiccup must not restart the container
+    mail:
+      enabled: false

@@ -40,6 +40,8 @@ public class ItemService {
     /** What other users can see on someone's profile. */
     private static final Set<ItemStatus> OWNER_ONLY_STATUSES = EnumSet.of(ItemStatus.HIDDEN, ItemStatus.REMOVED);
     private static final Set<ItemStatus> PUBLIC_PROFILE_STATUSES = EnumSet.of(ItemStatus.AVAILABLE, ItemStatus.IN_TRANSACTION);
+    /** Everything the owner can still see in "my items" (deleted items are gone for everyone). */
+    private static final Set<ItemStatus> OWNER_VISIBLE_STATUSES = EnumSet.complementOf(EnumSet.of(ItemStatus.DELETED));
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
 
     private final ItemRepository itemRepository;
@@ -85,6 +87,7 @@ public class ItemService {
     @Transactional(readOnly = true)
     public ItemDetailResponse getDetail(Long itemId, Long currentUserId) {
         Item item = itemRepository.findWithDetailsById(itemId)
+                .filter(found -> found.getStatus() != ItemStatus.DELETED)
                 .filter(found -> !OWNER_ONLY_STATUSES.contains(found.getStatus()) || found.isOwnedBy(currentUserId))
                 .orElseThrow(ItemService::itemNotFound);
         return ItemDetailResponse.from(item);
@@ -103,7 +106,10 @@ public class ItemService {
     /** All of the current user's own items, optionally filtered by status. */
     @Transactional(readOnly = true)
     public PageResponse<ItemSummaryResponse> listMine(Long userId, ItemStatus status, Integer page, Integer size) {
-        Set<ItemStatus> statuses = status == null ? EnumSet.allOf(ItemStatus.class) : EnumSet.of(status);
+        if (status == ItemStatus.DELETED) {
+            throw ApiException.badRequest("Deleted items are not listed");
+        }
+        Set<ItemStatus> statuses = status == null ? OWNER_VISIBLE_STATUSES : EnumSet.of(status);
         return PageResponse.of(
                 itemRepository.findByOwnerIdAndStatusIn(userId, statuses, PageQuery.of(page, size, NEWEST_FIRST)),
                 ItemSummaryResponse::from);
@@ -142,22 +148,28 @@ public class ItemService {
         if (!item.isEditable()) {
             throw ApiException.conflict("Items in an active or completed exchange cannot be deleted; hide them instead");
         }
-        // Requests that offered this item can no longer be fulfilled. They must stop pointing at the
-        // item before it is deleted (the database would set the column to NULL anyway).
-        exchangeService.cancelOpenOffersOf(item).forEach(request -> request.setOfferedItem(null));
+        // Open requests for the item, and requests offering it, are cancelled and the people involved told
+        exchangeService.closeAllFor(item);
 
+        // Soft delete: the row stays for exchange history and reviews; the photos are not needed any more
         List<String> files = new ArrayList<>();
         for (ItemImage image : item.getImages()) {
             files.add(image.getImageUrl());
             files.add(image.getThumbnailUrl());
         }
-        itemRepository.delete(item);
+        item.getImages().clear();
+        item.setStatus(ItemStatus.DELETED);
         storedFileCleanup.deleteAfterCommit(files);
     }
 
-    /** Loads an item and checks that the user owns it. Used by every write operation, inside its transaction. */
+    /**
+     * Loads an item and checks that the user owns it. Used by every write operation, inside its
+     * transaction. Deleted items behave as if they do not exist.
+     */
     public Item getOwnedItem(Long userId, Long itemId) {
-        Item item = itemRepository.findWithDetailsById(itemId).orElseThrow(ItemService::itemNotFound);
+        Item item = itemRepository.findWithDetailsById(itemId)
+                .filter(found -> found.getStatus() != ItemStatus.DELETED)
+                .orElseThrow(ItemService::itemNotFound);
         if (!item.isOwnedBy(userId)) {
             throw ApiException.forbidden("You can only change your own items");
         }
