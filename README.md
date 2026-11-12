@@ -77,7 +77,6 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | | `POST /api/items` · `PUT/DELETE /api/items/{id}` · `POST /{id}/hide · /{id}/show` | Đã xác thực email |
 | Hình ảnh | `POST /api/items/{id}/images` (multipart, tối đa 5) · `DELETE /{imageId}` · `PUT /{imageId}/primary` | Chủ tin đăng |
 | Trao đổi | `POST /api/exchange-requests` · `GET /sent · /received · /{id}` · `POST /{id}/accept · reject · cancel · complete` | Đã xác thực email |
-| Đánh giá | `POST /api/exchange-requests/{id}/reviews` | Người tham gia giao dịch đã hoàn tất |
 | Người dùng | `GET/PUT /api/users/me` · `POST /me/avatar` · `PUT /me/password` · `PUT /me/notification-settings` · `GET /me/items` | Đăng nhập |
 | | `GET /api/users/{id}` · `/{id}/items` · `/{id}/reviews` | Công khai (không có email/SĐT) |
 | Thông báo | `GET /api/notifications` · `GET /unread-count` · `POST /{id}/read` · `POST /read-all` · `DELETE /{id}` | Đăng nhập |
@@ -86,6 +85,7 @@ Dùng chung: `common/` (lỗi, phân trang, `@CurrentUserId`), `security/`, `sto
 | Cần tìm | `GET /api/wanted-posts` · `/{id}` · `POST /api/wanted-posts` · `PUT /{id}` · `POST /{id}/close` · `GET /{id}/matches` · `GET /api/users/me/wanted-posts` | Công khai (ghi: đã xác thực email) |
 | Giao nhận QR | `POST /api/exchange-requests/{id}/handover-code` (người cho) · `POST /{id}/confirm-handover` (người nhận) | Người tham gia giao dịch |
 | Đánh giá | `POST /api/exchange-requests/{id}/reviews` · `PUT /api/reviews/{id}/reply` (người bị đánh giá trả lời, 1 lần) | Người tham gia giao dịch |
+| Bình luận tin đăng | `GET/POST /api/items/{id}/comments` (trả lời bằng `parentId`, 1 tầng) · `DELETE /{commentId}` · `POST /api/moderation/comments/{id}/hide · restore` | Xem: công khai · Viết: đã xác thực email |
 | Hỗ trợ (ticket) | `POST/GET /api/support/tickets` · `/{id}` · `GET/POST /{id}/messages` · `POST /{id}/read · close` | Đăng nhập |
 | Hỗ trợ (ban quản trị) | `GET/POST /api/moderation/support-tickets` · `/{id}/messages` · `POST /{id}/read · close` · `POST /api/moderation/reviews/{id}/hide · restore` | MODERATOR, ADMIN |
 | Báo cáo & chặn | `POST /api/reports` · `POST/DELETE /api/blocks/{userId}` · `GET /api/blocks` | Đăng nhập (báo cáo: đã xác thực email) |
