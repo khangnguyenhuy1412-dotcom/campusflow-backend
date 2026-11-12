@@ -102,6 +102,12 @@
 			<artifactId>cloudinary-http5</artifactId>
 			<version>2.5.0</version>
 		</dependency>
+		<!-- WebP reading for ImageIO (Android/modern browsers); WebP uploads are stored as JPEG/PNG -->
+		<dependency>
+			<groupId>com.twelvemonkeys.imageio</groupId>
+			<artifactId>imageio-webp</artifactId>
+			<version>3.15.2</version>
+		</dependency>
 		<!-- QR code generation for meetup (handover) confirmation -->
 		<dependency>
 			<groupId>com.google.zxing</groupId>
